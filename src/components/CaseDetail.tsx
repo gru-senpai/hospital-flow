@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useHospitalFlow } from '../context/HospitalFlowContext';
+import { useFirebaseSession } from '../context/FirebaseSessionContext';
 import type { HospitalCase } from '../types';
-import { photoStorage } from '../services/db';
+import { cloudPhotoStorage } from '../services/cloudPhotoStorage';
 import { generateSyntheticBedPhotoBlob } from '../services/storage';
 import { RejectionModal } from './RejectionModal';
 import {
@@ -27,6 +28,7 @@ interface CaseDetailProps {
 export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
   const {
     settings,
+    storageSummary,
     isProcessing,
     toggleNursingHandoff,
     toggleBillingHandoff,
@@ -37,14 +39,21 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
     rejectBedPhoto,
     purgePhotoNow,
   } = useHospitalFlow();
+  const { profile } = useFirebaseSession();
+  const role = profile?.role;
+  const canUpdateNursing = role === 'admin' || role === 'coordinator' || role === 'nurse';
+  const canUpdateBilling = role === 'admin' || role === 'coordinator' || role === 'operations';
+  const canConfirmDepartureRole = role === 'admin' || role === 'coordinator' || role === 'operations';
+  const canHousekeep = role === 'admin' || role === 'operations' || role === 'housekeeping';
+  const canReviewReadiness = role === 'admin' || role === 'coordinator';
 
   const [photoObjectUrl, setPhotoObjectUrl] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState<boolean>(false);
   const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState<boolean>(false);
-  const [fileInputKey, setFileInputKey] = useState<number>(Date.now());
+  const [fileInputKey, setFileInputKey] = useState(0);
 
-  // Load photo blob safely from IndexedDB when case or photo status changes
+  // Load facility-scoped photo evidence when the case or storage state changes.
   useEffect(() => {
     let activeUrl: string | null = null;
     let isMounted = true;
@@ -60,7 +69,8 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
       setPhotoLoadError(null);
 
       try {
-        const record = await photoStorage.getPhoto(caseData.id);
+        if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
+        const record = await cloudPhotoStorage.getPhoto(profile.facilityId, caseData.id);
         if (!isMounted) return;
 
         if (record && record.blob) {
@@ -68,9 +78,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
           setPhotoObjectUrl(activeUrl);
         } else {
           setPhotoObjectUrl(null);
-          // If record doesn't exist in IndexedDB but case thought it did
+          // The metadata may remain after a retention purge or manual deletion.
           if (caseData.status === 'AWAITING_REVIEW' || caseData.status === 'BED_READY') {
-            setPhotoLoadError('Photo record is absent from IndexedDB (may have been cleared or expired).');
+            setPhotoLoadError('Photo evidence is not available in facility storage (it may have expired or been deleted).');
           }
         }
       } catch (err: unknown) {
@@ -91,7 +101,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
         URL.revokeObjectURL(activeUrl);
       }
     };
-  }, [caseData.id, caseData.photoUploaded, caseData.photoPurged, caseData.photoUploadedAt]);
+  }, [caseData.id, caseData.photoUploaded, caseData.photoPurged, caseData.photoUploadedAt, caseData.status, profile?.facilityId, storageSummary.totalPhotos]);
 
   // Stepper calculations
   const getStepStatus = (stepIndex: number) => {
@@ -120,7 +130,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
     }
   };
 
-  const canConfirmDeparture =
+  const isDepartureReady =
     !caseData.departureConfirmed &&
     caseData.nursingComplete &&
     (settings.billingOptional || caseData.billingComplete);
@@ -130,7 +140,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
     if (!files || files.length === 0) return;
     const file = files[0];
     await uploadPhoto(caseData.id, file);
-    setFileInputKey(Date.now());
+    setFileInputKey((key) => key + 1);
   };
 
   const handleUseSyntheticPhoto = async () => {
@@ -277,7 +287,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                     caseData.nursingComplete ? 'checked' : 'unchecked'
                   }`}
                   onClick={() => toggleNursingHandoff(caseData.id)}
-                  disabled={caseData.departureConfirmed || isProcessing}
+                  disabled={!canUpdateNursing || caseData.departureConfirmed || isProcessing}
                   aria-label="Toggle Nursing Handoff"
                 >
                   {caseData.nursingComplete ? 'Mark Incomplete' : 'Mark Complete'}
@@ -318,7 +328,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                     caseData.billingComplete ? 'checked' : 'unchecked'
                   }`}
                   onClick={() => toggleBillingHandoff(caseData.id)}
-                  disabled={caseData.departureConfirmed || isProcessing}
+                  disabled={!canUpdateBilling || caseData.departureConfirmed || isProcessing}
                   aria-label="Toggle Billing / TPA Clearance"
                 >
                   {caseData.billingComplete ? 'Mark Incomplete' : 'Mark Complete'}
@@ -359,7 +369,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
               ) : (
                 <div className="pending-departure-controls">
                   <p className="departure-prereq-note">
-                    {canConfirmDeparture
+                    {isDepartureReady
                       ? '✓ Both handoffs are satisfied. Ready to confirm room departure.'
                       : '⚠️ Complete nursing handoff ' +
                         (!settings.billingOptional ? 'and billing clearance ' : '') +
@@ -368,7 +378,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   <button
                     type="button"
                     className="btn btn-primary btn-large"
-                    disabled={!canConfirmDeparture || isProcessing}
+                    disabled={!isDepartureReady || !canConfirmDepartureRole || isProcessing}
                     onClick={() => confirmRoomDeparture(caseData.id)}
                   >
                     <LogOut className="btn-icon" />
@@ -408,7 +418,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                       type="button"
                       className="btn btn-secondary"
                       onClick={() => startCleaning(caseData.id)}
-                      disabled={isProcessing}
+                      disabled={!canHousekeep || isProcessing}
                     >
                       <Sparkles className="btn-icon" />
                       <span>Start Bed Sanitisation</span>
@@ -434,9 +444,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   <div className="warning-body">
                     <strong className="warning-title">Privacy & Compliance Safeguard Reminder</strong>
                     <p className="warning-text">
-                      Frame <strong>ONLY the sanitised bed and immediate room environment</strong>.
-                      Do NOT capture people (patients, nurses, visitors), clinical monitors,
-                      ABHA numbers, paper case sheets, bed tags, or identifiable healthcare documents.
+                      <strong>Use synthetic demo images only; never upload a real patient or staff photo.</strong>{' '}
+                      For synthetic images, frame only the sanitised bed and immediate room environment.
+                      Do not include people, clinical monitors, ABHA numbers, paper case sheets, bed tags,
+                      or identifiable healthcare documents. This browser-only prototype cannot verify image contents.
                     </p>
                   </div>
                 </div>
@@ -467,14 +478,14 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                     capture="environment"
                     className="visually-hidden"
                     onChange={handleFileUpload}
-                    disabled={isProcessing || caseData.status === 'BED_READY'}
+                    disabled={!canHousekeep || isProcessing || caseData.status === 'BED_READY'}
                   />
 
                   <div className="upload-buttons-row">
                     <label
                       htmlFor="camera-file-input"
                       className={`btn btn-primary ${
-                        caseData.status === 'BED_READY' || isProcessing ? 'disabled' : ''
+                        !canHousekeep || caseData.status === 'BED_READY' || isProcessing ? 'disabled' : ''
                       }`}
                     >
                       <Camera className="btn-icon" />
@@ -490,8 +501,8 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                       type="button"
                       className="btn btn-secondary"
                       onClick={handleUseSyntheticPhoto}
-                      disabled={isProcessing || caseData.status === 'BED_READY'}
-                      title="Generate clean synthetic hospital bed SVG blob directly into IndexedDB"
+                      disabled={!canHousekeep || isProcessing || caseData.status === 'BED_READY'}
+                      title="Generate a synthetic hospital bed image and upload it to facility Firebase Storage"
                     >
                       <Layers className="btn-icon" />
                       <span>Use Synthetic Room Photo (Demo)</span>
@@ -499,7 +510,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   </div>
 
                   <span className="file-limits-caption">
-                    Accepts JPEG, PNG, or WebP • Max 10MB • Stored locally in IndexedDB only
+                    JPEG, PNG, or WebP • Max 10MB • Stored in access-controlled facility Firebase Storage
                   </span>
                 </div>
               </div>
@@ -535,7 +546,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
               {photoLoading && (
                 <div className="photo-state-box loading">
                   <div className="spinner" />
-                  <span>Loading photo from IndexedDB...</span>
+                  <span>Loading photo from facility storage...</span>
                 </div>
               )}
 
@@ -552,7 +563,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   <Trash2 className="state-icon muted" />
                   <span className="purged-title">Photo Permanently Purged</span>
                   <p className="purged-desc">
-                    Photo blob deleted from local IndexedDB per the 48-hour retention policy.
+                    Photo deleted from facility Firebase Storage per the retention policy.
                   </p>
                   <div className="purged-audit-pill">
                     ✓ Bed readiness approval audit record preserved below
@@ -574,7 +585,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                         ? new Date(caseData.photoUploadedAt).toLocaleString()
                         : 'Recent'}
                     </span>
-                    <span className="photo-storage-tag">IndexedDB Local Storage</span>
+                    <span className="photo-storage-tag">Facility Firebase Storage</span>
                   </div>
                 </div>
               )}
@@ -597,7 +608,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
 
             {/* Coordinator Actions */}
             <div className="coordinator-action-dock">
-              {caseData.status === 'AWAITING_REVIEW' && (
+              {caseData.status === 'AWAITING_REVIEW' && canReviewReadiness && (
                 <div className="review-actions-split">
                   <button
                     type="button"
@@ -639,7 +650,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   </div>
 
                   {/* Demo-only purge control */}
-                  {!caseData.photoPurged && (
+                  {!caseData.photoPurged && role === 'admin' && (
                     <div className="demo-retention-test-box">
                       <span className="demo-label">DEMO RETENTION CONTROL</span>
                       <p className="demo-desc">
@@ -669,7 +680,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
               <h3 id="history-card-title" className="history-title">
                 Operational Event History
               </h3>
-              <span className="audit-tag">Local Audit Trail</span>
+              <span className="audit-tag">Facility Event History</span>
             </div>
 
             <p className="audit-privacy-notice">

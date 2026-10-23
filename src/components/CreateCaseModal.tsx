@@ -107,8 +107,9 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({ isOpen, onClos
           <div className="alert-body">
             <strong>Strict Operational Data Boundary:</strong>
             <p>
-              Never enter patient names, telephone numbers, ABHA IDs, clinical diagnoses, or insurance
-              member codes. This workflow manages physical room turnover only.
+              Use synthetic demo information only. Never enter patient or staff identifiers, ABHA IDs,
+              clinical diagnoses, or insurance member codes. This browser-only prototype is not approved
+              for real patient data.
             </p>
           </div>
         </div>

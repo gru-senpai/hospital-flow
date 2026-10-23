@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useFacilityData } from './FacilityDataContext';
+import { useFirebaseSession } from './FirebaseSessionContext';
 import type {
   HospitalCase,
   CaseStatus,
@@ -7,12 +9,9 @@ import type {
   RejectionReasonCategory,
   EventLog,
 } from '../types';
-import { photoStorage } from '../services/db';
+import { cloudPhotoStorage } from '../services/cloudPhotoStorage';
 import {
-  loadCases,
-  saveCases,
-  loadSettings,
-  saveSettings,
+  DEFAULT_SETTINGS,
   getInitialSyntheticCases,
   generateCaseRef,
   generateSyntheticBedPhotoBlob,
@@ -55,7 +54,7 @@ interface HospitalFlowContextType {
     details?: string
   ) => Promise<{ success: boolean; error?: string }>;
   purgePhotoNow: (caseId: string) => Promise<{ success: boolean; error?: string }>;
-  simulateTimeFastForward: (hours: number) => Promise<{ purgedCount: number }>;
+  simulateTimeFastForward: (hours: number) => Promise<{ purgedCount: number; error?: string }>;
   updateSettings: (newSettings: Partial<WorkflowSettings>) => void;
   resetToInitialDemoData: () => Promise<void>;
   refreshStorageSummary: () => Promise<void>;
@@ -65,9 +64,10 @@ interface HospitalFlowContextType {
 const HospitalFlowContext = createContext<HospitalFlowContextType | undefined>(undefined);
 
 export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cases, setCases] = useState<HospitalCase[]>([]);
+  const { profile } = useFirebaseSession();
+  const [cases, setCases] = useFacilityData<HospitalCase[]>('bed-turnaround-cases-v1', getInitialSyntheticCases);
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<WorkflowSettings>(loadSettings);
+  const [settings, setSettings] = useFacilityData<WorkflowSettings>('workflow-settings-v1', () => DEFAULT_SETTINGS);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
@@ -79,6 +79,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     pendingCount: 0,
     approvedCount: 0,
   });
+  const syntheticPhotoSeedInProgress = useRef(new Set<string>());
 
   const showNotification = useCallback(
     (type: 'success' | 'error' | 'info', message: string) => {
@@ -92,40 +93,38 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const refreshStorageSummary = useCallback(async () => {
+    if (!profile?.facilityId) return;
     try {
-      const summary = await photoStorage.getStorageSummary();
+      const summary = await cloudPhotoStorage.getStorageSummary(profile.facilityId);
       setStorageSummary(summary);
-    } catch (e) {
-      console.warn('[HospitalFlow] Could not fetch storage summary', e);
+    } catch (error) {
+      showNotification('error', `Could not load photo storage summary: ${error instanceof Error ? error.message : 'Firebase Storage error.'}`);
     }
-  }, []);
+  }, [profile?.facilityId, showNotification]);
 
-  // Update cases state and persist to localStorage
+  // Persist case updates to the facility-scoped Firestore document.
   const updateCases = useCallback(
     (updater: (prev: HospitalCase[]) => HospitalCase[]) => {
-      setCases((prev) => {
-        const next = updater(prev);
-        saveCases(next);
-        return next;
-      });
+      setCases(updater);
     },
-    []
+    [setCases]
   );
 
   // Periodic and on-load auto-purge check
   const runAutoPurge = useCallback(async () => {
-    const now = new Date();
-    const { purgedCaseIds, errors } = await photoStorage.purgeExpiredPhotos(now);
+    if (!profile?.facilityId) return;
+    try {
+      const { purgedCaseIds, errors } = await cloudPhotoStorage.purgeExpiredPhotos(profile.facilityId);
 
-    if (errors.length > 0) {
-      console.error('[HospitalFlow AutoPurge] Errors occurred during purge:', errors);
-      showNotification('error', `Storage purge error: ${errors[0]}`);
-    }
+      if (errors.length > 0) {
+        console.error('[HospitalFlow AutoPurge] Errors occurred during purge:', errors);
+        showNotification('error', `Photo retention error: ${errors[0]}`);
+      }
 
-    if (purgedCaseIds.length > 0) {
-      updateCases((prevCases) =>
-        prevCases.map((c) => {
-          if (purgedCaseIds.includes(c.id)) {
+      if (purgedCaseIds.length > 0) {
+        updateCases((prevCases) =>
+          prevCases.map((c) => {
+            if (!purgedCaseIds.includes(c.id)) return c;
             const isPending = c.status === 'AWAITING_REVIEW';
             const purgeEvt: EventLog = {
               id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -142,67 +141,65 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
               ...c,
               photoPurged: true,
               photoPurgedAt: new Date().toISOString(),
-              // If pending photo expired, bed must have new photo uploaded
-              status: isPending ? ('REJECTED_RECLEAN' as CaseStatus) : c.status,
+              status: isPending ? 'REJECTED_RECLEAN' as CaseStatus : c.status,
               photoUploaded: isPending ? false : c.photoUploaded,
               events: [purgeEvt, ...c.events],
             };
-          }
-          return c;
-        })
-      );
+          })
+        );
 
-      await refreshStorageSummary();
-      showNotification(
-        'info',
-        `Automated retention policy executed: ${purgedCaseIds.length} expired photo(s) deleted from IndexedDB.`
-      );
+        await refreshStorageSummary();
+        showNotification(
+          'info',
+          `Automated retention policy executed: ${purgedCaseIds.length} expired photo(s) deleted from Firebase Storage.`
+        );
+      }
+    } catch (error) {
+      showNotification('error', `Photo retention check failed: ${error instanceof Error ? error.message : 'Firebase Storage error.'}`);
     }
-  }, [refreshStorageSummary, showNotification, updateCases]);
+  }, [profile?.facilityId, refreshStorageSummary, showNotification, updateCases]);
 
-  // Initial load: restore cases from localStorage or seed initial synthetic cases
+  // The first facility visit initializes records in Firestore through useFacilityData.
   useEffect(() => {
-    async function init() {
-      let loaded = loadCases();
-      if (!loaded || loaded.length === 0) {
-        loaded = getInitialSyntheticCases();
-        saveCases(loaded);
+    if (cases.length > 0) setActiveCaseId((current) => current ?? cases[0].id);
+  }, [cases]);
 
-        // Seed initial synthetic photo blob for case 1 and case 3 in IndexedDB
-        try {
-          const case1Blob = generateSyntheticBedPhotoBlob(loaded[0].caseRef, loaded[0].bed);
-          await photoStorage.savePhoto(
-            loaded[0].id,
-            case1Blob,
-            'image/svg+xml',
-            loaded[0].photoExpiresAt || new Date(Date.now() + 7 * 86400000).toISOString(),
-            'pending'
-          );
+  useEffect(() => {
+    if (!profile?.facilityId) return;
+    void refreshStorageSummary();
+  }, [profile?.facilityId, refreshStorageSummary]);
 
-          const case3Blob = generateSyntheticBedPhotoBlob(loaded[2].caseRef, loaded[2].bed);
-          await photoStorage.savePhoto(
-            loaded[2].id,
-            case3Blob,
-            'image/svg+xml',
-            loaded[2].photoExpiresAt || new Date(Date.now() + 48 * 3600000).toISOString(),
-            'approved'
-          );
-        } catch (err) {
-          console.warn('[HospitalFlow] Seeded synthetic photo storage notice:', err);
-        }
-      }
-
-      setCases(loaded);
-      if (loaded.length > 0) {
-        setActiveCaseId(loaded[0].id);
-      }
-
-      await runAutoPurge();
-      await refreshStorageSummary();
+  useEffect(() => {
+    if (!profile?.facilityId) return;
+    const candidates = cases.filter((item) =>
+      item.id.startsWith('case-synth-') &&
+      item.photoUploaded &&
+      !item.photoPurged &&
+      (item.status === 'AWAITING_REVIEW' || item.status === 'BED_READY')
+    );
+    for (const item of candidates) {
+      if (syntheticPhotoSeedInProgress.current.has(item.id)) continue;
+      syntheticPhotoSeedInProgress.current.add(item.id);
+      void cloudPhotoStorage.hasPhoto(profile.facilityId, item.id).then(async (exists) => {
+        if (exists) return;
+        const blob = generateSyntheticBedPhotoBlob(item.caseRef, item.bed);
+        const result = await cloudPhotoStorage.savePhoto(
+          profile.facilityId,
+          item.id,
+          blob,
+          'image/svg+xml',
+          item.photoExpiresAt ?? new Date(Date.now() + 7 * 86400000).toISOString(),
+          item.status === 'BED_READY' ? 'approved' : 'pending',
+        );
+        if (!result.success) throw new Error(result.error ?? 'Could not seed the synthetic demonstration image.');
+        await refreshStorageSummary();
+      }).catch((error: unknown) => {
+        showNotification('error', `Could not initialize synthetic bed photo: ${error instanceof Error ? error.message : 'Firebase Storage error.'}`);
+      }).finally(() => {
+        syntheticPhotoSeedInProgress.current.delete(item.id);
+      });
     }
-
-    init();
-  }, [runAutoPurge, refreshStorageSummary]);
+  }, [cases, profile?.facilityId, refreshStorageSummary, showNotification]);
 
   // Periodic purge timer
   useEffect(() => {
@@ -399,8 +396,9 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     ): Promise<{ success: boolean; error?: string }> => {
       setIsProcessing(true);
       try {
+        if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
         if (file instanceof File) {
-          const val = photoStorage.validateFile(file);
+          const val = cloudPhotoStorage.validateFile(file);
           if (!val.valid) {
             setIsProcessing(false);
             showNotification('error', val.error || 'Invalid photo file');
@@ -414,8 +412,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
         const nowIso = new Date().toISOString();
 
-        // Save blob in IndexedDB
-        const saveRes = await photoStorage.savePhoto(caseId, file, mimeType, expiresAt, 'pending');
+        const saveRes = await cloudPhotoStorage.savePhoto(profile.facilityId, caseId, file, mimeType, expiresAt, 'pending');
         if (!saveRes.success) {
           setIsProcessing(false);
           showNotification('error', `Storage Error: ${saveRes.error || 'Failed to write photo'}`);
@@ -458,7 +455,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: msg };
       }
     },
-    [settings.pendingPhotoExpiryDays, showNotification, updateCases, refreshStorageSummary]
+    [profile?.facilityId, settings.pendingPhotoExpiryDays, showNotification, updateCases, refreshStorageSummary]
   );
 
   // 7. Coordinator Approves Bed Ready
@@ -478,11 +475,9 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const retentionHours = settings.approvedPhotoRetentionHours || 48;
         const expiresAt = new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString();
 
-        // Update photo record retention in IndexedDB
-        const updateRes = await photoStorage.updateExpiryAndStatus(caseId, expiresAt, 'approved');
-        if (!updateRes.success) {
-          console.warn('[HospitalFlow] Retention update notice:', updateRes.error);
-        }
+        if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
+        const updateRes = await cloudPhotoStorage.updateExpiryAndStatus(profile.facilityId, caseId, expiresAt, 'approved');
+        if (!updateRes.success) throw new Error(`Could not apply the approved-photo retention policy: ${updateRes.error ?? 'Firebase Storage error.'}`);
 
         // Case approval event log: Strictly caseRef, approverLabel, approval timestamp, approved status.
         // NO image URLs, file names or binary bytes.
@@ -521,7 +516,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: msg };
       }
     },
-    [cases, settings.approvedPhotoRetentionHours, showNotification, updateCases, refreshStorageSummary]
+    [cases, profile?.facilityId, settings.approvedPhotoRetentionHours, showNotification, updateCases, refreshStorageSummary]
   );
 
   // 8. Coordinator Requests Re-clean / Rejects Photo
@@ -538,8 +533,8 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
       try {
         const nowIso = new Date().toISOString();
 
-        // Rejection MUST delete the rejected image immediately from IndexedDB
-        const delRes = await photoStorage.deletePhoto(caseId);
+        if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
+        const delRes = await cloudPhotoStorage.deletePhoto(profile.facilityId, caseId);
         if (!delRes.success) {
           setIsProcessing(false);
           showNotification('error', `Deletion error: ${delRes.error || 'Failed to remove rejected photo'}`);
@@ -596,7 +591,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: msg };
       }
     },
-    [cases, showNotification, updateCases, refreshStorageSummary]
+    [cases, profile?.facilityId, showNotification, updateCases, refreshStorageSummary]
   );
 
   // 9. Demo-only Control: Delete Photo Now (Test 48h Retention Policy Immediately)
@@ -608,7 +603,8 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsProcessing(true);
       try {
         const nowIso = new Date().toISOString();
-        const delRes = await photoStorage.deletePhoto(caseId);
+        if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
+        const delRes = await cloudPhotoStorage.deletePhoto(profile.facilityId, caseId);
         if (!delRes.success) {
           setIsProcessing(false);
           showNotification('error', `Failed to purge photo: ${delRes.error || 'Storage error'}`);
@@ -639,7 +635,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         await refreshStorageSummary();
         showNotification(
           'success',
-          `[Demo Control] Photo for case ${c.caseRef} permanently deleted from IndexedDB. Bed-ready audit notice remains intact.`
+          `[Demo Control] Photo for case ${c.caseRef} permanently deleted from Firebase Storage. Bed-ready audit notice remains intact.`
         );
         setIsProcessing(false);
         return { success: true };
@@ -650,23 +646,27 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: msg };
       }
     },
-    [cases, showNotification, updateCases, refreshStorageSummary]
+    [cases, profile?.facilityId, showNotification, updateCases, refreshStorageSummary]
   );
 
   // 10. Demo Simulation: Fast-Forward Time
   const simulateTimeFastForward = useCallback(
-    async (hours: number): Promise<{ purgedCount: number }> => {
-      const simulatedFutureTime = new Date(Date.now() + hours * 3600 * 1000);
-      const { purgedCaseIds, errors } = await photoStorage.purgeExpiredPhotos(simulatedFutureTime);
-
-      if (errors.length > 0) {
-        showNotification('error', `Fast-forward purge error: ${errors[0]}`);
+    async (hours: number): Promise<{ purgedCount: number; error?: string }> => {
+      if (!profile?.facilityId) {
+        const error = 'No facility photo-storage session is available.';
+        showNotification('error', error);
+        return { purgedCount: 0, error };
       }
+      try {
+        const simulatedFutureTime = new Date(Date.now() + hours * 3600 * 1000);
+        const { purgedCaseIds, errors } = await cloudPhotoStorage.purgeExpiredPhotos(profile.facilityId, simulatedFutureTime);
 
-      if (purgedCaseIds.length > 0) {
-        updateCases((prev) =>
-          prev.map((c) => {
-            if (purgedCaseIds.includes(c.id)) {
+        if (errors.length > 0) showNotification('error', `Fast-forward purge error: ${errors[0]}`);
+
+        if (purgedCaseIds.length > 0) {
+          updateCases((prev) =>
+            prev.map((c) => {
+              if (!purgedCaseIds.includes(c.id)) return c;
               const isPending = c.status === 'AWAITING_REVIEW';
               const evt: EventLog = {
                 id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -683,63 +683,63 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 ...c,
                 photoPurged: true,
                 photoPurgedAt: new Date().toISOString(),
-                status: isPending ? ('REJECTED_RECLEAN' as CaseStatus) : c.status,
+                status: isPending ? 'REJECTED_RECLEAN' as CaseStatus : c.status,
                 photoUploaded: isPending ? false : c.photoUploaded,
                 events: [evt, ...c.events],
               };
-            }
-            return c;
-          })
-        );
-      }
+            })
+          );
+        }
 
-      await refreshStorageSummary();
-      showNotification(
-        'info',
-        `Simulated +${hours} hours: ${purgedCaseIds.length} photo(s) exceeded retention threshold and were purged.`
-      );
-      return { purgedCount: purgedCaseIds.length };
+        await refreshStorageSummary();
+        showNotification(
+          'info',
+          `Simulated +${hours} hours: ${purgedCaseIds.length} photo(s) exceeded retention threshold and were purged.`
+        );
+        return { purgedCount: purgedCaseIds.length };
+      } catch (error) {
+        const message = `Fast-forward purge failed: ${error instanceof Error ? error.message : 'Firebase Storage error.'}`;
+        showNotification('error', message);
+        return { purgedCount: 0, error: message };
+      }
     },
-    [refreshStorageSummary, showNotification, updateCases]
+    [profile?.facilityId, refreshStorageSummary, showNotification, updateCases]
   );
 
   // 11. Update Settings
   const updateSettings = useCallback((newSettings: Partial<WorkflowSettings>) => {
-    setSettings((prev) => {
-      const updated = { ...prev, ...newSettings };
-      saveSettings(updated);
-      return updated;
-    });
-  }, []);
+    setSettings((prev) => ({ ...prev, ...newSettings }));
+  }, [setSettings]);
 
   // 12. Reset to Initial Demo Data
   const resetToInitialDemoData = useCallback(async () => {
     setIsProcessing(true);
     try {
-      await photoStorage.clearAllPhotos();
+      if (!profile?.facilityId) throw new Error('No facility photo-storage session is available.');
+      if (profile.role !== 'admin') throw new Error('Only a facility administrator can reset the synthetic demo data.');
       const freshCases = getInitialSyntheticCases();
-      saveCases(freshCases);
+      const case1Blob = generateSyntheticBedPhotoBlob(freshCases[0].caseRef, freshCases[0].bed);
+      const case3Blob = generateSyntheticBedPhotoBlob(freshCases[2].caseRef, freshCases[2].bed);
+      const seeds = await Promise.all([
+        cloudPhotoStorage.savePhoto(
+          profile.facilityId, freshCases[0].id, case1Blob, 'image/svg+xml',
+          freshCases[0].photoExpiresAt || new Date(Date.now() + 7 * 86400000).toISOString(), 'pending'
+        ),
+        cloudPhotoStorage.savePhoto(
+          profile.facilityId, freshCases[2].id, case3Blob, 'image/svg+xml',
+          freshCases[2].photoExpiresAt || new Date(Date.now() + 48 * 3600000).toISOString(), 'approved'
+        ),
+      ]);
+      const seedError = seeds.find((result) => !result.success)?.error;
+      if (seedError) throw new Error(`Could not initialize demo photos: ${seedError}`);
+      const freshCaseIds = new Set(freshCases.map((item) => item.id));
+      const deletions = await Promise.all(cases
+        .filter((item) => !freshCaseIds.has(item.id))
+        .map((item) => cloudPhotoStorage.deletePhoto(profile.facilityId, item.id)));
+      const deletionError = deletions.find((result) => !result.success)?.error;
+      if (deletionError) throw new Error(`Could not clear the current bed cases' photos: ${deletionError}`);
       setCases(freshCases);
       setActiveCaseId(freshCases[0].id);
-
-      // Seed synthetic photos
-      const case1Blob = generateSyntheticBedPhotoBlob(freshCases[0].caseRef, freshCases[0].bed);
-      await photoStorage.savePhoto(
-        freshCases[0].id,
-        case1Blob,
-        'image/svg+xml',
-        freshCases[0].photoExpiresAt || new Date(Date.now() + 7 * 86400000).toISOString(),
-        'pending'
-      );
-
-      const case3Blob = generateSyntheticBedPhotoBlob(freshCases[2].caseRef, freshCases[2].bed);
-      await photoStorage.savePhoto(
-        freshCases[2].id,
-        case3Blob,
-        'image/svg+xml',
-        freshCases[2].photoExpiresAt || new Date(Date.now() + 48 * 3600000).toISOString(),
-        'approved'
-      );
 
       await refreshStorageSummary();
       showNotification('success', 'Demo data reset to clean initial state.');
@@ -749,7 +749,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setIsProcessing(false);
     }
-  }, [refreshStorageSummary, showNotification]);
+  }, [cases, profile?.facilityId, profile?.role, refreshStorageSummary, setCases, showNotification]);
 
   return (
     <HospitalFlowContext.Provider

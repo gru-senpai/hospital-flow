@@ -80,7 +80,7 @@ export const OverviewStats: React.FC = () => {
         </div>
         <div className="stat-content">
           <div className="stat-label-row">
-            <span className="stat-label">IndexedDB Photo Store</span>
+            <span className="stat-label">Firebase Storage Photos</span>
             <span className="retention-rule-pill">48h / 7d Policy</span>
           </div>
           <div className="stat-value-row">

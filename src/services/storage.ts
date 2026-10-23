@@ -1,8 +1,5 @@
 import type { HospitalCase, WorkflowSettings, EventLog } from '../types';
 
-const STORAGE_KEY_CASES = 'hospitalflow_cases_v1';
-const STORAGE_KEY_SETTINGS = 'hospitalflow_settings_v1';
-
 export const DEFAULT_SETTINGS: WorkflowSettings = {
   billingOptional: false,
   pendingPhotoExpiryDays: 7,
@@ -16,49 +13,6 @@ export const DEFAULT_SETTINGS: WorkflowSettings = {
 export function generateCaseRef(): string {
   const randNum = Math.floor(1000 + Math.random() * 9000);
   return `HF-${randNum}`;
-}
-
-export function loadSettings(): WorkflowSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
-    if (raw) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-    }
-  } catch (err) {
-    console.warn('[HospitalFlow] Could not parse settings from localStorage', err);
-  }
-  return DEFAULT_SETTINGS;
-}
-
-export function saveSettings(settings: WorkflowSettings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-  } catch (err) {
-    console.error('[HospitalFlow] Failed to write settings to localStorage', err);
-  }
-}
-
-export function loadCases(): HospitalCase[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CASES);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('[HospitalFlow] Could not load cases from localStorage', err);
-  }
-  return [];
-}
-
-export function saveCases(cases: HospitalCase[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_CASES, JSON.stringify(cases));
-  } catch (err) {
-    console.error('[HospitalFlow] Failed to write cases to localStorage', err);
-  }
 }
 
 /**
@@ -358,10 +312,10 @@ export function generateSyntheticBedPhotoBlob(caseRef: string, bedLabel: string)
       Ref: ${caseRef} | ${bedLabel} [Sanitised]
     </text>
 
-    <!-- Privacy Compliance Badge -->
+    <!-- Synthetic data boundary label -->
     <rect x="530" y="25" width="245" height="40" rx="6" fill="#14532d" fill-opacity="0.9" />
     <text x="545" y="50" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#bbf7d0">
-      ✓ No PII / Environment Only
+      SYNTHETIC SCENE • NO REAL PATIENT DATA
     </text>
   </svg>`;
 

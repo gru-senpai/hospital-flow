@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { SetStateAction } from 'react';
+import { useFacilityData } from '../context/FacilityDataContext';
 import {
   Activity,
   AlertTriangle,
+  Biohazard,
   Bed,
   BellRing,
   Boxes,
   Check,
   ClipboardList,
   Clock3,
+  Droplets,
   HeartPulse,
   Plus,
   ShieldAlert,
   Stethoscope,
+  Truck,
   Users,
   UserRoundCheck,
 } from 'lucide-react';
@@ -35,24 +39,7 @@ function PanelHeader({ eyebrow, title, description, icon: Icon }: PanelHeaderPro
 }
 
 function useLocalRecords<T>(key: string, initialValue: () => T): [T, (value: SetStateAction<T>) => void] {
-  const [records, setRecords] = useState<T>(() => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      return saved ? JSON.parse(saved) as T : initialValue();
-    } catch {
-      return initialValue();
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(records));
-    } catch {
-      // Keep this session usable if browser storage is unavailable.
-    }
-  }, [key, records]);
-
-  return [records, setRecords];
+  return useFacilityData(key, initialValue);
 }
 
 function SummaryMetric({ label, value, note, tone }: { label: string; value: string; note: string; tone: string }) {
@@ -199,7 +186,7 @@ export function CliniciansWorkspace() {
 }
 
 type DepartmentCoverage = { id: string; department: string; staffed: number; required: number; roles: string };
-const departments: DepartmentCoverage[] = [
+const initialDepartments: DepartmentCoverage[] = [
   { id: 'ed', department: 'Emergency department', staffed: 8, required: 10, roles: 'Nursing · triage · support' },
   { id: 'trauma', department: 'Trauma centre', staffed: 6, required: 6, roles: 'Trauma team · theatre support' },
   { id: 'imaging', department: 'Imaging', staffed: 4, required: 5, roles: 'Radiographers · technicians' },
@@ -208,9 +195,16 @@ const departments: DepartmentCoverage[] = [
 ];
 
 export function StaffWorkspace() {
+  const [departments, setDepartments] = useLocalRecords<DepartmentCoverage[]>('hospital-flow-staff-coverage-v1', () => initialDepartments);
   const onDuty = departments.reduce((total, department) => total + department.staffed, 0);
   const required = departments.reduce((total, department) => total + department.required, 0);
   const shortDepartments = departments.filter((department) => department.staffed < department.required).length;
+
+  function updateStaffing(id: string, staffed: number) {
+    setDepartments((current) => current.map((department) => department.id === id
+      ? { ...department, staffed: Math.max(0, Math.min(100, staffed)) }
+      : department));
+  }
 
   return (
     <section className="scenario-workspace">
@@ -226,7 +220,7 @@ export function StaffWorkspace() {
           const percentage = Math.min(100, Math.round(department.staffed / department.required * 100));
           const short = department.staffed < department.required;
           return <article className="coverage-row" key={department.id}>
-            <div className="coverage-head"><div><strong>{department.department}</strong><small>{department.roles}</small></div><span className={`coverage-count${short ? ' is-short' : ''}`}>{department.staffed}<span> / {department.required}</span></span></div>
+            <div className="coverage-head"><div><strong>{department.department}</strong><small>{department.roles}</small></div><label className={`coverage-count${short ? ' is-short' : ''}`}><span className="sr-only">{department.department} synthetic staff on duty</span><input aria-label={`${department.department} synthetic staff on duty`} type="number" min={0} max={100} value={department.staffed} onChange={(event) => updateStaffing(department.id, Number(event.target.value))} /><span> / {department.required}</span></label></div>
             <div className="utilization-track coverage-track"><span className={short ? 'coverage-low' : ''} style={{ width: `${percentage}%` }} /></div>
             <div className="coverage-foot"><span>{percentage}% covered</span>{short && <StateTag tone="maintenance">Coverage gap</StateTag>}</div>
           </article>;
@@ -277,6 +271,147 @@ export function AlertsWorkspace() {
         </article>)}</div>
         {visibleAlerts.length === 0 && <p className="scenario-empty">No alerts match this filter.</p>}
         <div className="panel-footnote"><BellRing size={15} /> Demo alerts are examples. Connect hospital systems for live notifications.</div>
+      </section>
+    </section>
+  );
+}
+
+type BloodProduct = { id: string; group: string; component: string; units: number; updated: string };
+const initialBloodProducts: BloodProduct[] = [
+  { id: 'a-positive-rbc', group: 'A+', component: 'Red blood cells', units: 8, updated: '20 min ago' },
+  { id: 'o-negative-rbc', group: 'O−', component: 'Red blood cells', units: 4, updated: '35 min ago' },
+  { id: 'b-positive-plasma', group: 'B+', component: 'Plasma', units: 6, updated: '1 hr ago' },
+  { id: 'ab-positive-platelets', group: 'AB+', component: 'Platelets', units: 3, updated: '2 hr ago' },
+];
+
+export function BloodBankWorkspace() {
+  const [products, setProducts] = useLocalRecords<BloodProduct[]>('hospital-flow-blood-bank-v1', () => initialBloodProducts);
+  const totalUnits = products.reduce((total, product) => total + product.units, 0);
+  const availableTypes = products.filter((product) => product.units > 0).length;
+
+  function recordReceipt(id: string) {
+    setProducts((current) => current.map((product) => product.id === id
+      ? { ...product, units: product.units + 1, updated: 'Just now' }
+      : product));
+  }
+
+  return (
+    <section className="scenario-workspace">
+      <PanelHeader eyebrow="BLOOD BANK COORDINATION" title="Blood & blood product availability" description="Review the demo inventory by blood group and component. Confirm compatibility and live stock with the blood bank before coordination." icon={Droplets} />
+      <div className="scenario-metrics">
+        <SummaryMetric label="Product units" value={String(totalUnits)} note="Across listed components" tone="blue" />
+        <SummaryMetric label="Available listings" value={`${availableTypes} / ${products.length}`} note="With units on hand" tone="mint" />
+        <SummaryMetric label="Stock feed" value="Demo" note="Not connected to a live blood bank" tone="gold" />
+      </div>
+      <section className="workflow-panel full-panel">
+        <SectionTitle label="SYNTHETIC INVENTORY" title="Blood products on hand" trailing={`${products.length} listings`} />
+        <div className="table-scroll"><table className="workflow-table"><thead><tr><th>Blood group</th><th>Component</th><th>Units</th><th>Updated</th><th>Status</th><th>Action</th></tr></thead><tbody>
+          {products.map((product) => <tr key={product.id}>
+            <td><strong>{product.group}</strong></td><td>{product.component}</td><td>{product.units}</td><td>{product.updated}</td>
+            <td><StateTag tone={product.units > 0 ? 'confirmed' : 'maintenance'}>{product.units > 0 ? 'Listed' : 'No units listed'}</StateTag></td>
+            <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => recordReceipt(product.id)} aria-label={`Record one received unit of ${product.group} ${product.component}`}><Plus size={14} /> Record receipt</button></td>
+          </tr>)}
+        </tbody></table></div>
+        <div className="panel-footnote"><ShieldAlert size={15} /> Demo inventory only; verify compatibility, crossmatch, product status, and current quantities with authorized blood bank staff.</div>
+      </section>
+    </section>
+  );
+}
+
+type AmbulanceStatus = 'Inbound' | 'Arrived' | 'Handover complete';
+type IncomingAmbulance = { id: string; origin: string; eta: string; destination: string; status: AmbulanceStatus };
+const initialIncomingAmbulances: IncomingAmbulance[] = [
+  { id: 'AMB-204', origin: 'North district', eta: '8 min', destination: 'Emergency bay 1', status: 'Inbound' },
+  { id: 'AMB-207', origin: 'Central highway', eta: '15 min', destination: 'Trauma bay 2', status: 'Inbound' },
+  { id: 'AMB-198', origin: 'East clinic', eta: 'Arrived', destination: 'Emergency bay 3', status: 'Arrived' },
+];
+const ambulanceTransitions: Record<AmbulanceStatus, { label: string; next: AmbulanceStatus }> = {
+  Inbound: { label: 'Mark arrived', next: 'Arrived' },
+  Arrived: { label: 'Complete handover', next: 'Handover complete' },
+  'Handover complete': { label: 'Handover complete', next: 'Handover complete' },
+};
+
+export function AmbulanceWorkspace() {
+  const [arrivals, setArrivals] = useLocalRecords<IncomingAmbulance[]>('hospital-flow-ambulance-arrivals-v1', () => initialIncomingAmbulances);
+  const inbound = arrivals.filter((arrival) => arrival.status === 'Inbound').length;
+  const arrived = arrivals.filter((arrival) => arrival.status === 'Arrived').length;
+
+  function advanceArrival(id: string) {
+    setArrivals((current) => current.map((arrival) => arrival.id === id
+      ? { ...arrival, status: ambulanceTransitions[arrival.status].next, eta: 'Arrived' }
+      : arrival));
+  }
+
+  return (
+    <section className="scenario-workspace">
+      <PanelHeader eyebrow="EMERGENCY TRANSPORT" title="Ambulance & incoming emergency coordination" description="Coordinate synthetic incoming vehicle ETAs, receiving locations, and arrival handovers with the emergency team." icon={Truck} />
+      <div className="scenario-metrics">
+        <SummaryMetric label="Inbound" value={String(inbound)} note="Vehicles en route" tone={inbound ? 'coral' : 'mint'} />
+        <SummaryMetric label="Arrived" value={String(arrived)} note="Awaiting handover" tone="gold" />
+        <SummaryMetric label="Tracked" value={String(arrivals.length)} note="Demo arrival entries" tone="blue" />
+      </div>
+      <section className="workflow-panel full-panel">
+        <SectionTitle label="INCOMING COORDINATION" title="Expected emergency arrivals" trailing={`${inbound} inbound`} />
+        <div className="table-scroll"><table className="workflow-table"><thead><tr><th>Vehicle</th><th>Origin</th><th>ETA / status</th><th>Receiving location</th><th>Coordination status</th><th>Action</th></tr></thead><tbody>
+          {arrivals.map((arrival) => {
+            const complete = arrival.status === 'Handover complete';
+            return <tr key={arrival.id}>
+              <td><strong>{arrival.id}</strong></td><td>{arrival.origin}</td><td>{arrival.eta}</td><td>{arrival.destination}</td>
+              <td><StateTag tone={complete ? 'confirmed' : arrival.status === 'Arrived' ? 'maintenance' : 'neutral'}>{arrival.status}</StateTag></td>
+              <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => advanceArrival(arrival.id)} disabled={complete}>{complete ? <Check size={14} /> : <Clock3 size={14} />}{ambulanceTransitions[arrival.status].label}</button></td>
+            </tr>;
+          })}
+        </tbody></table></div>
+        <div className="panel-footnote"><BellRing size={15} /> Synthetic coordination board; use dispatch radio and hospital procedures for real-time arrivals and clinical handover.</div>
+      </section>
+    </section>
+  );
+}
+
+type IsolationStatus = 'Available' | 'Occupied' | 'Cleaning';
+type IsolationRoom = { id: string; room: string; isolationType: string; status: IsolationStatus };
+const initialIsolationRooms: IsolationRoom[] = [
+  { id: 'ISO-01', room: 'Isolation room 01', isolationType: 'Negative pressure', status: 'Available' },
+  { id: 'ISO-02', room: 'Isolation room 02', isolationType: 'Single room', status: 'Occupied' },
+  { id: 'ISO-03', room: 'Isolation room 03', isolationType: 'Negative pressure', status: 'Cleaning' },
+  { id: 'ISO-04', room: 'Isolation room 04', isolationType: 'Single room', status: 'Available' },
+];
+const isolationTransitions: Record<IsolationStatus, { label: string; next: IsolationStatus }> = {
+  Available: { label: 'Mark occupied', next: 'Occupied' },
+  Occupied: { label: 'Send to cleaning', next: 'Cleaning' },
+  Cleaning: { label: 'Mark ready', next: 'Available' },
+};
+
+export function InfectionControlWorkspace() {
+  const [rooms, setRooms] = useLocalRecords<IsolationRoom[]>('hospital-flow-isolation-rooms-v1', () => initialIsolationRooms);
+  const available = rooms.filter((room) => room.status === 'Available').length;
+  const occupied = rooms.filter((room) => room.status === 'Occupied').length;
+  const cleaning = rooms.filter((room) => room.status === 'Cleaning').length;
+
+  function advanceRoom(id: string) {
+    setRooms((current) => current.map((room) => room.id === id
+      ? { ...room, status: isolationTransitions[room.status].next }
+      : room));
+  }
+
+  return (
+    <section className="scenario-workspace">
+      <PanelHeader eyebrow="INFECTION CONTROL" title="Isolation & bed availability" description="Review isolation-room readiness and cleaning status for operational coordination." icon={Biohazard} />
+      <div className="scenario-metrics">
+        <SummaryMetric label="Available" value={String(available)} note="Ready isolation rooms" tone="mint" />
+        <SummaryMetric label="Occupied" value={String(occupied)} note="Currently in use" tone="coral" />
+        <SummaryMetric label="Cleaning" value={String(cleaning)} note="Not yet available" tone="gold" />
+      </div>
+      <section className="workflow-panel full-panel">
+        <SectionTitle label="ISOLATION CAPACITY" title="Room status" trailing={`${available} of ${rooms.length} available`} />
+        <div className="table-scroll"><table className="workflow-table"><thead><tr><th>Room</th><th>Room type</th><th>Availability</th><th>Action</th></tr></thead><tbody>
+          {rooms.map((room) => <tr key={room.id}>
+            <td><strong>{room.room}</strong> <small>· {room.id}</small></td><td>{room.isolationType}</td>
+            <td><StateTag tone={room.status === 'Available' ? 'confirmed' : room.status === 'Cleaning' ? 'maintenance' : 'neutral'}>{room.status}</StateTag></td>
+            <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => advanceRoom(room.id)}><Bed size={14} /> {isolationTransitions[room.status].label}</button></td>
+          </tr>)}
+        </tbody></table></div>
+        <div className="panel-footnote"><ShieldAlert size={15} /> Demo room states only. Follow current infection-prevention guidance and local isolation, PPE, and terminal-cleaning protocols.</div>
       </section>
     </section>
   );

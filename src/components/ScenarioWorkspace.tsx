@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent, ReactNode, SetStateAction } from 'react';
+import { useFacilityData } from '../context/FacilityDataContext';
 import DotGrid from './DotGrid';
 import {
   AlertTriangle,
+  Biohazard,
   ArrowRight,
   BellRing,
   Bed,
@@ -12,6 +14,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
+  Droplets,
   HeartPulse,
   FlaskConical,
   Hospital,
@@ -20,44 +23,57 @@ import {
   Plus,
   ShieldCheck,
   Stethoscope,
+  Truck,
   Users,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import {
   AlertsWorkspace,
+  AmbulanceWorkspace,
+  BloodBankWorkspace,
   CliniciansWorkspace,
+  InfectionControlWorkspace,
   PharmacyWorkspace,
   StaffWorkspace,
   TraumaWorkspace,
 } from './EmergencyWorkspaces';
+import { OccupancyWorkspace } from './OccupancyWorkspace';
 import './ScenarioWorkspace.css';
 
-export type ScenarioRoute = 'home' | 'labs' | 'equipment' | 'beds' | 'camps' | 'pharmacy' | 'trauma' | 'clinicians' | 'staff' | 'alerts';
+export type ScenarioRoute = 'home' | 'labs' | 'equipment' | 'beds' | 'occupancy' | 'camps' | 'pharmacy' | 'trauma' | 'clinicians' | 'staff' | 'alerts' | 'blood-bank' | 'ambulance' | 'infection-control';
 
 const routePaths: Record<ScenarioRoute, string> = {
   home: '/',
   labs: '/labs',
   equipment: '/equipment',
   beds: '/beds',
+  occupancy: '/occupancy',
   camps: '/camps',
   pharmacy: '/pharmacy',
   trauma: '/trauma',
   clinicians: '/clinicians',
   staff: '/staff',
   alerts: '/alerts',
+  'blood-bank': '/blood-bank',
+  ambulance: '/ambulance',
+  'infection-control': '/infection-control',
 };
 
 const scenarios = [
   { id: 'labs', title: 'Lab availability', detail: 'Reserve diagnostic slots and resolve schedule conflicts.', icon: FlaskConical, tone: 'mint', path: routePaths.labs },
   { id: 'equipment', title: 'Equipment booking', detail: 'Book shared equipment and see maintenance outages.', icon: Wrench, tone: 'blue', path: routePaths.equipment },
   { id: 'beds', title: 'Clinic beds', detail: 'Coordinate housekeeping, review, and room readiness.', icon: Bed, tone: 'coral', path: routePaths.beds },
+  { id: 'occupancy', title: 'Bed occupancy', detail: 'Track ward capacity, crew assignments, and bed readiness.', icon: Bed, tone: 'mint', path: '/occupancy' },
   { id: 'camps', title: 'Health camp', detail: 'Allocate resource units against camp capacity.', icon: Stethoscope, tone: 'gold', path: routePaths.camps },
   { id: 'pharmacy', title: 'Emergency pharmacy', detail: 'Monitor critical medicines, tools, and low-stock supplies.', icon: Boxes, tone: 'coral', path: routePaths.pharmacy },
   { id: 'trauma', title: 'Emergency & trauma', detail: 'See room readiness and available trauma bays at a glance.', icon: HeartPulse, tone: 'mint', path: routePaths.trauma },
   { id: 'clinicians', title: 'Doctor schedule', detail: 'Review on-duty clinicians and upcoming coverage.', icon: CalendarClock, tone: 'blue', path: routePaths.clinicians },
   { id: 'staff', title: 'Staff availability', detail: 'Check shift coverage across hospital departments.', icon: Users, tone: 'gold', path: routePaths.staff },
   { id: 'alerts', title: 'General alerts', detail: 'Review and acknowledge cross-team operational issues.', icon: BellRing, tone: 'coral', path: routePaths.alerts },
+  { id: 'blood-bank', title: 'Blood bank', detail: 'Review blood group and product availability for coordination.', icon: Droplets, tone: 'coral', path: routePaths['blood-bank'] },
+  { id: 'ambulance', title: 'Ambulance arrivals', detail: 'Coordinate incoming emergency vehicles and handover readiness.', icon: Truck, tone: 'blue', path: routePaths.ambulance },
+  { id: 'infection-control', title: 'Isolation & infection control', detail: 'Check isolation room availability and cleaning status.', icon: Biohazard, tone: 'mint', path: routePaths['infection-control'] },
 ] as const;
 
 const navigationItems = [
@@ -65,12 +81,16 @@ const navigationItems = [
   { id: 'labs', title: 'Labs', icon: FlaskConical, path: routePaths.labs },
   { id: 'equipment', title: 'Equipment', icon: Wrench, path: routePaths.equipment },
   { id: 'beds', title: 'Clinic beds', icon: Bed, path: routePaths.beds },
+  { id: 'occupancy', title: 'Occupancy', icon: Bed, path: '/occupancy' },
   { id: 'camps', title: 'Health camps', icon: Stethoscope, path: routePaths.camps },
   { id: 'pharmacy', title: 'Pharmacy', icon: Boxes, path: routePaths.pharmacy },
   { id: 'trauma', title: 'Trauma', icon: HeartPulse, path: routePaths.trauma },
   { id: 'clinicians', title: 'Doctors', icon: CalendarClock, path: routePaths.clinicians },
   { id: 'staff', title: 'Staff', icon: Users, path: routePaths.staff },
   { id: 'alerts', title: 'Alerts', icon: BellRing, path: routePaths.alerts },
+  { id: 'blood-bank', title: 'Blood bank', icon: Droplets, path: routePaths['blood-bank'] },
+  { id: 'ambulance', title: 'Ambulances', icon: Truck, path: routePaths.ambulance },
+  { id: 'infection-control', title: 'Isolation', icon: Biohazard, path: routePaths['infection-control'] },
 ] as const;
 
 export function ScenarioNavigation({ currentRoute }: { currentRoute: ScenarioRoute }) {
@@ -129,24 +149,7 @@ function localTime() {
 }
 
 function usePersistentState<T>(key: string, initialValue: () => T): [T, (value: SetStateAction<T>) => void] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      return saved ? JSON.parse(saved) as T : initialValue();
-    } catch {
-      return initialValue();
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // Keep the current session usable if browser storage is unavailable.
-    }
-  }, [key, value]);
-
-  return [value, setValue];
+  return useFacilityData(key, initialValue);
 }
 
 function PageHeading({ eyebrow, title, description, icon: Icon }: {
@@ -527,11 +530,15 @@ export function ScenarioWorkspace({ route }: { route: ScenarioRoute }) {
   if (route === 'home') return <ScenarioHome />;
   if (route === 'labs') return <LabWorkspace />;
   if (route === 'equipment') return <EquipmentWorkspace />;
+  if (route === 'occupancy') return <OccupancyWorkspace />;
   if (route === 'camps') return <CampWorkspace />;
   if (route === 'pharmacy') return <PharmacyWorkspace />;
   if (route === 'trauma') return <TraumaWorkspace />;
   if (route === 'clinicians') return <CliniciansWorkspace />;
   if (route === 'staff') return <StaffWorkspace />;
   if (route === 'alerts') return <AlertsWorkspace />;
+  if (route === 'blood-bank') return <BloodBankWorkspace />;
+  if (route === 'ambulance') return <AmbulanceWorkspace />;
+  if (route === 'infection-control') return <InfectionControlWorkspace />;
   return null;
 }

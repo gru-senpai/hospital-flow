@@ -93,7 +93,7 @@ export const RejectionModal: React.FC<RejectionModalProps> = ({
               <strong>Mandatory Storage Deletion:</strong>
               <p>
                 Confirming rejection will <strong>immediately delete the current photo</strong> from
-                local IndexedDB storage. Housekeeping must re-clean and upload a fresh replacement photo.
+                facility Firebase Storage. Housekeeping must re-clean and upload a fresh replacement photo.
               </p>
             </div>
           </div>
