@@ -1,179 +1,234 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HospitalFlowProvider, useHospitalFlow } from './context/HospitalFlowContext';
-import { Header } from './components/Header';
-import { OverviewStats } from './components/OverviewStats';
-import { CaseList } from './components/CaseList';
-import { CaseDetail } from './components/CaseDetail';
+import { OperationsProvider } from './context/OperationsContext';
+import { Sidebar } from './components/layout/Sidebar';
+import { TopNav } from './components/layout/TopNav';
+import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
+import { NotificationDrawer } from './components/layout/NotificationDrawer';
+
+import { OperationsDashboard } from './components/dashboard/OperationsDashboard';
+import { LabManagement } from './components/labs/LabManagement';
+import { EquipmentManagement } from './components/equipment/EquipmentManagement';
+import { ClinicBedManagement } from './components/beds/ClinicBedManagement';
+import { HealthCampManagement } from './components/camps/HealthCampManagement';
+import { EmergencyPharmacy } from './components/pharmacy/EmergencyPharmacy';
+import { EmergencyTrauma } from './components/trauma/EmergencyTrauma';
+import { DoctorSchedule } from './components/doctors/DoctorSchedule';
+import { StaffAvailability } from './components/staff/StaffAvailability';
+import { OperationalAlerts } from './components/alerts/OperationalAlerts';
+import { ReportsWorkspace } from './components/reports/ReportsWorkspace';
+import { SettingsWorkspace } from './components/settings/SettingsWorkspace';
+
 import { CreateCaseModal } from './components/CreateCaseModal';
 import { SimulationControlsModal } from './components/SimulationControlsModal';
 import { SettingsModal } from './components/SettingsModal';
-import {
-  ScenarioNavigation,
-  ScenarioWorkspace,
-  type ScenarioRoute,
-} from './components/ScenarioWorkspace';
-import {
-  Bed,
-  CheckCircle2,
-  AlertCircle,
-  Info,
-  X,
-  ArrowLeft,
-  Shield,
-} from 'lucide-react';
 
-function getScenarioRoute(pathname: string): ScenarioRoute {
-  const route = pathname.split('/').filter(Boolean)[0];
-  if (route === 'labs' || route === 'equipment' || route === 'beds' || route === 'occupancy' || route === 'camps' || route === 'pharmacy' || route === 'trauma' || route === 'clinicians' || route === 'staff' || route === 'alerts' || route === 'blood-bank' || route === 'ambulance' || route === 'infection-control') {
-    return route;
-  }
-  return 'home';
+import type { AppRoute } from './types';
+import { CheckCircle2, AlertCircle, Info, X, Shield } from 'lucide-react';
+import './App.css';
+
+function getInitialRoute(): AppRoute {
+  const path = window.location.pathname.replace(/^\//, '').toLowerCase();
+  const validRoutes: AppRoute[] = [
+    'dashboard',
+    'labs',
+    'equipment',
+    'beds',
+    'camps',
+    'pharmacy',
+    'trauma',
+    'clinicians',
+    'staff',
+    'alerts',
+    'reports',
+    'settings',
+  ];
+  if (path === '' || path === 'home') return 'dashboard';
+  if (validRoutes.includes(path as AppRoute)) return path as AppRoute;
+  return 'dashboard';
 }
 
-const HospitalFlowDashboard: React.FC = () => {
-  const {
-    activeCase,
-    setActiveCaseId,
-    notification,
-    clearNotification,
-  } = useHospitalFlow();
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+const HospitalFlowCommandCenter: React.FC = () => {
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(getInitialRoute);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isCreateCaseOpen, setIsCreateCaseOpen] = useState(false);
   const [isSimOpen, setIsSimOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [mobileView, setMobileView] = useState<'queue' | 'detail'>('queue');
-  const route = getScenarioRoute(window.location.pathname);
+  const [isOldSettingsOpen, setIsOldSettingsOpen] = useState(false);
 
-  const handleSelectCase = (id: string) => {
-    setActiveCaseId(id);
-    setMobileView('detail');
+  const { notification, clearNotification } = useHospitalFlow();
+
+  // Listen to browser popstate (back/forward)
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(getInitialRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Keyboard shortcut for Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const navigateTo = (route: AppRoute) => {
+    setCurrentRoute(route);
+    setMobileMenuOpen(false);
+    const path = route === 'dashboard' ? '/' : `/${route}`;
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="app-shell">
-      {/* Top Operational Navigation */}
-      <Header
-        showBedActions={route === 'beds'}
-        onOpenCreate={() => setIsCreateOpen(true)}
-        onOpenSimulation={() => setIsSimOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+    <div className="app-enterprise-shell">
+      {/* Deep-Navy Sidebar */}
+      <Sidebar
+        currentRoute={currentRoute}
+        onNavigate={navigateTo}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
-      {/* Global Toast Notification */}
-      {notification && (
-        <div className={`notification-toast ${notification.type}`} role="status">
-          <div className="toast-content">
-            {notification.type === 'success' && <CheckCircle2 className="toast-icon" />}
-            {notification.type === 'error' && <AlertCircle className="toast-icon" />}
-            {notification.type === 'info' && <Info className="toast-icon" />}
-            <span className="toast-message">{notification.message}</span>
-          </div>
-          <button
-            type="button"
-            className="toast-close"
-            onClick={clearNotification}
-            aria-label="Dismiss notification"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {/* Main Viewport */}
+      <div className="app-main-viewport">
+        {/* Top Navigation */}
+        <TopNav
+          currentRoute={currentRoute}
+          onNavigate={navigateTo}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          onOpenCreateCase={() => setIsCreateCaseOpen(true)}
+          onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+        />
 
-      {/* Main Content Area */}
-      <main className="main-content">
-        <div className="content-container">
-          <ScenarioNavigation currentRoute={route} />
-          {route === 'beds' ? (
-            <>
-              <OverviewStats />
-              <div className={`operational-workspace mobile-${mobileView}`}>
-                <div className="workspace-queue-pane">
-                  <CaseList onSelectCase={handleSelectCase} />
-                </div>
-
-                <div className="workspace-detail-pane">
-                  <div className="mobile-back-bar">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setMobileView('queue')}
-                    >
-                      <ArrowLeft className="btn-icon" />
-                      <span>Back to Bed Queue</span>
-                    </button>
-                    {activeCase && (
-                      <span className="mobile-active-ref">
-                        Viewing {activeCase.caseRef} ({activeCase.bed})
-                      </span>
-                    )}
-                  </div>
-
-                  {activeCase ? (
-                    <CaseDetail key={activeCase.id} caseData={activeCase} />
-                  ) : (
-                    <div className="no-case-selected-card">
-                      <div className="no-case-icon-box">
-                        <Bed size={40} />
-                      </div>
-                      <h3>No Turnaround Case Selected</h3>
-                      <p>
-                        Select an operational bed case from the queue on the left, or create a new case to
-                        begin the turnaround workflow.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => setIsCreateOpen(true)}
-                      >
-                        + Create New Case
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            <ScenarioWorkspace route={route} />
-          )}
+        {/* Global Toast Notification */}
+        {notification && (
+          <div className={`notification-toast ${notification.type}`} role="status">
+            <div className="toast-content">
+              {notification.type === 'success' && <CheckCircle2 className="toast-icon" />}
+              {notification.type === 'error' && <AlertCircle className="toast-icon" />}
+              {notification.type === 'info' && <Info className="toast-icon" />}
+              <span className="toast-message">{notification.message}</span>
             </div>
-      </main>
-
-      {/* Operational Footer */}
-      <footer className="app-footer">
-        <div className="footer-container">
-          <div className="footer-left">
-            <span className="footer-brand">HospitalFlow Prototype v1.0</span>
-            <span className="footer-divider">•</span>
-            <span>Hospital Resource Coordination</span>
-            <span className="footer-divider">•</span>
-            <span className="footer-tag">India Operational Concept</span>
+            <button
+              type="button"
+              className="toast-close"
+              onClick={clearNotification}
+              aria-label="Dismiss notification"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <div className="footer-right">
-            <Shield className="footer-shield" />
-            <span>
-              Synthetic Data Prototype • No PII / ABHA Stored • IndexedDB Local Storage Retention
-            </span>
-          </div>
-        </div>
-      </footer>
+        )}
 
-      {/* Dialog Modals */}
-      {route === 'beds' && (
-        <>
-          <CreateCaseModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-          <SimulationControlsModal isOpen={isSimOpen} onClose={() => setIsSimOpen(false)} />
-          <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-        </>
-      )}
+        {/* Scrollable Page Body */}
+        <main className="app-scrollable-content">
+          {currentRoute === 'dashboard' && (
+            <OperationsDashboard
+              onNavigate={navigateTo}
+              onOpenCreateCase={() => setIsCreateCaseOpen(true)}
+            />
+          )}
+
+          {currentRoute === 'labs' && <LabManagement />}
+
+          {currentRoute === 'equipment' && <EquipmentManagement />}
+
+          {currentRoute === 'beds' && (
+            <ClinicBedManagement
+              onOpenCreateCase={() => setIsCreateCaseOpen(true)}
+            />
+          )}
+
+          {currentRoute === 'camps' && <HealthCampManagement />}
+
+          {currentRoute === 'pharmacy' && <EmergencyPharmacy />}
+
+          {currentRoute === 'trauma' && <EmergencyTrauma />}
+
+          {currentRoute === 'clinicians' && <DoctorSchedule />}
+
+          {currentRoute === 'staff' && <StaffAvailability />}
+
+          {currentRoute === 'alerts' && <OperationalAlerts />}
+
+          {currentRoute === 'reports' && <ReportsWorkspace />}
+
+          {currentRoute === 'settings' && <SettingsWorkspace />}
+        </main>
+
+        {/* Enterprise Operational Footer */}
+        <footer className="app-footer">
+          <div className="footer-container">
+            <div className="footer-left">
+              <span className="footer-brand">HospitalFlow Enterprise</span>
+              <span className="footer-divider">•</span>
+              <span>Healthcare Resource Coordination Platform</span>
+              <span className="footer-divider">•</span>
+              <span className="footer-tag">India Operational Concept</span>
+            </div>
+            <div className="footer-right">
+              <Shield className="footer-shield" />
+              <span>
+                Strict Zero PII Protocol • Synthetic Demo Sandbox • Client-Side Verified Storage
+              </span>
+            </div>
+          </div>
+        </footer>
+      </div>
+
+      {/* Global Modals & Drawers */}
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onNavigate={navigateTo}
+      />
+
+      <NotificationDrawer
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onNavigate={navigateTo}
+      />
+
+      <CreateCaseModal
+        isOpen={isCreateCaseOpen}
+        onClose={() => setIsCreateCaseOpen(false)}
+      />
+
+      <SimulationControlsModal
+        isOpen={isSimOpen}
+        onClose={() => setIsSimOpen(false)}
+      />
+
+      <SettingsModal
+        isOpen={isOldSettingsOpen}
+        onClose={() => setIsOldSettingsOpen(false)}
+      />
     </div>
   );
 };
 
 export function App() {
   return (
-    <HospitalFlowProvider>
-      <HospitalFlowDashboard />
-    </HospitalFlowProvider>
+    <OperationsProvider>
+      <HospitalFlowProvider>
+        <HospitalFlowCommandCenter />
+      </HospitalFlowProvider>
+    </OperationsProvider>
   );
 }
 
