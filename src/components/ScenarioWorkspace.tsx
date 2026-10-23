@@ -318,12 +318,47 @@ const equipment = [
   { id: 'infusion', name: 'Infusion pump set', location: 'Ward equipment pool', maintenance: '' },
 ] as const;
 
-const emergencyLifeSupportEquipment = [
-  { name: 'Defibrillators / AEDs', description: 'Restore normal heart rhythms during cardiac arrest.' },
-  { name: 'Ventilators & anesthesia machines', description: 'Provide mechanical respiratory support and gas delivery.' },
-  { name: 'Emergency crash cart', description: 'Mobile unit packed with resuscitation and airway tools.' },
-  { name: 'Oxygen cylinders & concentrators', description: 'Supply continuous medical oxygen.' },
-  { name: 'Suction units', description: 'Clear blood, mucus, and airway obstructions.' },
+const equipmentCategories = [
+  {
+    id: 'emergency-life-support',
+    title: 'Emergency & Life Support',
+    equipment: [
+      { name: 'Defibrillators / AEDs', description: 'Restore normal heart rhythms during cardiac arrest.' },
+      { name: 'Ventilators & Anesthesia Machines', description: 'Provide mechanical respiratory support and gas delivery.' },
+      { name: 'Emergency Crash Cart', description: 'Mobile unit packed with resuscitation and airway tools.' },
+      { name: 'Oxygen Cylinders & Concentrators', description: 'Supply continuous medical oxygen.' },
+      { name: 'Suction Units', description: 'Clear blood, mucus, and airway obstructions.' },
+    ],
+  },
+  {
+    id: 'icu-ward-monitoring',
+    title: 'Intensive Care Unit (ICU) & Ward Monitoring',
+    equipment: [
+      { name: 'Patient Vital Sign Monitors', description: 'Track heart rate, blood pressure, temperature, and SpO₂ continuously.' },
+      { name: 'Infusion & Syringe Pumps', description: 'Regulate precise, continuous delivery of intravenous medications.' },
+      { name: 'ECG Machines', description: 'Record electrical activity of the heart for cardiac diagnoses.' },
+      { name: 'Hospital Beds & Stretchers', description: 'Adjustable platforms for patient care and safe intra-facility transport.' },
+    ],
+  },
+  {
+    id: 'operation-theatre-surgery',
+    title: 'Operation Theatre (OT) & Surgery',
+    equipment: [
+      { name: 'OT Lights & Surgical Tables', description: 'Provide shadow-free illumination and multi-position patient control.' },
+      { name: 'Electrosurgical Units (ESU)', description: 'Cut tissue and coagulate blood during operations.' },
+      { name: 'Endoscopic Imaging Systems', description: 'Offer high-definition visual feedback for minimally invasive procedures.' },
+      { name: 'Sterilization Equipment (Autoclaves)', description: 'Ensure complete decontamination of surgical instruments.' },
+    ],
+  },
+  {
+    id: 'diagnostic-imaging',
+    title: 'Diagnostic & Imaging',
+    equipment: [
+      { name: 'X-Ray & Ultrasound Machines', description: 'Deliver real-time or structural skeletal and soft-tissue imaging.' },
+      { name: 'CT Scanners & MRI Machines', description: 'Provide cross-sectional and high-resolution internal organ visualization.' },
+      { name: 'Laboratory Analyzers', description: 'Process blood, biochemistry, and pathology samples (e.g., cell counters, centrifuges).' },
+    ],
+  },
 ];
 
 function timeAsMinutes(time: string) {
@@ -374,20 +409,22 @@ function EquipmentWorkspace() {
         <Metric label="In maintenance" value={String(equipment.filter((item) => item.maintenance).length)} note="Unavailable to book" tone="coral" />
         <Metric label="Bookings today" value={String(bookings.filter((item) => item.date === todayDate()).length)} note="All departments" tone="mint" />
       </div>
-      <section className="workflow-panel full-panel" aria-labelledby="emergency-equipment-title">
-        <div className="panel-heading">
-          <div><p className="panel-kicker">EMERGENCY &amp; LIFE SUPPORT</p><h3 id="emergency-equipment-title">Critical care equipment</h3></div>
-          <span className="panel-count">{emergencyLifeSupportEquipment.length} equipment types</span>
-        </div>
-        <ul className="life-support-grid">
-          {emergencyLifeSupportEquipment.map((item) => (
-            <li className="life-support-item" key={item.name}>
-              <strong>{item.name}</strong>
-              <p>{item.description}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {equipmentCategories.map((category) => (
+        <section className="workflow-panel full-panel" key={category.id} aria-labelledby={`equipment-category-${category.id}`}>
+          <div className="panel-heading">
+            <div><p className="panel-kicker">CLINICAL EQUIPMENT</p><h3 id={`equipment-category-${category.id}`}>{category.title}</h3></div>
+            <span className="panel-count">{category.equipment.length} equipment types</span>
+          </div>
+          <ul className="life-support-grid">
+            {category.equipment.map((item) => (
+              <li className="life-support-item" key={item.name}>
+                <strong>{item.name}</strong>
+                <p>{item.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
       <div className="workflow-columns">
         <section className="workflow-panel booking-panel">
           <div className="panel-heading"><div><p className="panel-kicker">NEW BOOKING</p><h3>Book equipment</h3></div><span className="step-mark">01</span></div>
