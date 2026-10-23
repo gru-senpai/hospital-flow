@@ -80,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 <span className="setting-label">Approved Photo Retention (Hours)</span>
                 <p className="setting-desc">
                   Time in hours after Coordinator approval before the bed verification photo is
-                  automatically deleted from facility Firebase Storage. Default is 48 hours.
+                  automatically deleted from IndexedDB. Default is 48 hours.
                 </p>
               </div>
               <div className="setting-input-wrapper">
@@ -126,7 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               <p>
                 In a production cloud environment, scheduled Object Lifecycle Management (e.g. S3
                 Lifecycle rules or Cloud Storage auto-delete) enforces server-side deletion. In this
-                client prototype, the signed-in app checks the configured retention timestamps. A production deployment should add a server-side scheduled cleanup and monitor its results.
+                client prototype, IndexedDB TTL timers simulate this lifecycle.
               </p>
             </div>
           </div>
@@ -145,3 +145,4 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     </div>
   );
 };
+

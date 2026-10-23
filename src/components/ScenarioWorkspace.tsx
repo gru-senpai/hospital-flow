@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode, SetStateAction } from 'react';
-import { useFacilityData } from '../context/FacilityDataContext';
 import DotGrid from './DotGrid';
 import {
   AlertTriangle,
@@ -149,7 +148,24 @@ function localTime() {
 }
 
 function usePersistentState<T>(key: string, initialValue: () => T): [T, (value: SetStateAction<T>) => void] {
-  return useFacilityData(key, initialValue);
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved ? JSON.parse(saved) as T : initialValue();
+    } catch {
+      return initialValue();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Keep the current session usable if browser storage is unavailable.
+    }
+  }, [key, value]);
+
+  return [value, setValue];
 }
 
 function PageHeading({ eyebrow, title, description, icon: Icon }: {

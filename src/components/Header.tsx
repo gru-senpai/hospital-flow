@@ -7,9 +7,7 @@ import {
   Settings,
   PlusCircle,
   RefreshCw,
-  LogOut,
 } from 'lucide-react';
-import { useFirebaseSession } from '../context/FirebaseSessionContext';
 
 interface HeaderProps {
   showBedActions: boolean;
@@ -25,10 +23,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
 }) => {
   const { storageSummary, resetToInitialDemoData, isProcessing } = useHospitalFlow();
-  const { profile, signOutUser } = useFirebaseSession();
-  const canManageBeds = !!profile && ['admin', 'coordinator', 'operations'].includes(profile.role);
-  const canManageSettings = !!profile && ['admin', 'coordinator'].includes(profile.role);
-  const isAdmin = profile?.role === 'admin';
 
   return (
     <header className="app-header">
@@ -50,70 +44,64 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Operational Safeguard Banner */}
-        <div className="pii-guard-pill" title="Synthetic demo only. Do not enter real patient or staff data or upload real photos.">
+        <div className="pii-guard-pill" title="Strict Operational Boundary: No Patient Data">
           <ShieldAlert className="guard-icon" />
-          <span className="guard-text">Synthetic Demo Only • No Real Patient Data</span>
+          <span className="guard-text">Operational Coordination Only • No PII / ABHA</span>
         </div>
 
         {/* Global Action Buttons */}
-        <div className="header-actions">
-          {showBedActions && canManageBeds && <>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={onOpenCreate}
-              aria-label="Create New Room Readiness Case"
-            >
-              <PlusCircle className="btn-icon" />
-              <span>Create Case</span>
-            </button>
-
-            {isAdmin && <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onOpenSimulation}
-              title="Demo Time Travel and Storage Diagnostics"
-              aria-label="Simulation & Storage Controls"
-            >
-              <Clock className="btn-icon" />
-              <span className="hide-on-mobile">Demo Controls</span>
-              <span className="badge-count" title={`${storageSummary.totalPhotos} facility photos in Firebase Storage`}>
-                {storageSummary.totalPhotos} Cloud
-              </span>
-            </button>}
-
-            {canManageSettings && <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={onOpenSettings}
-              title="Configure Retention & Handoff Settings"
-              aria-label="Workflow Settings"
-            >
-              <Settings className="btn-icon" />
-              <span className="hide-on-tablet">Settings</span>
-            </button>}
-
-            {isAdmin && <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                if (window.confirm('Reset the synthetic bed-turnaround cases and photos for this facility?')) {
-                  resetToInitialDemoData();
-                }
-              }}
-              disabled={isProcessing}
-              title="Reset synthetic bed-turnaround cases and photos"
-              aria-label="Reset bed turnaround demo data"
-            >
-              <RefreshCw className={`btn-icon ${isProcessing ? 'spin' : ''}`} />
-              <span className="hide-on-tablet">Reset</span>
-            </button>}
-          </>}
-          <button type="button" className="btn btn-ghost" onClick={() => void signOutUser()} aria-label="Sign out">
-            <LogOut className="btn-icon" />
-            <span className="hide-on-tablet">Sign out</span>
+        {showBedActions && <div className="header-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onOpenCreate}
+            aria-label="Create New Room Readiness Case"
+          >
+            <PlusCircle className="btn-icon" />
+            <span>Create Case</span>
           </button>
-        </div>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onOpenSimulation}
+            title="Demo Time Travel and Storage Diagnostics"
+            aria-label="Simulation & Storage Controls"
+          >
+            <Clock className="btn-icon" />
+            <span className="hide-on-mobile">Demo Controls</span>
+            <span className="badge-count" title={`${storageSummary.totalPhotos} photos in IndexedDB`}>
+              {storageSummary.totalPhotos} IDB
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onOpenSettings}
+            title="Configure Retention & Handoff Settings"
+            aria-label="Workflow Settings"
+          >
+            <Settings className="btn-icon" />
+            <span className="hide-on-tablet">Settings</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              if (window.confirm('Reset all demo cases and storage to fresh initial state?')) {
+                resetToInitialDemoData();
+              }
+            }}
+            disabled={isProcessing}
+            title="Reset to Initial Demo State"
+            aria-label="Reset Demo Data"
+          >
+            <RefreshCw className={`btn-icon ${isProcessing ? 'spin' : ''}`} />
+            <span className="hide-on-tablet">Reset</span>
+          </button>
+        </div>}
       </div>
     </header>
   );

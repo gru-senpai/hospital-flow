@@ -32,9 +32,9 @@ export const SimulationControlsModal: React.FC<SimulationControlsModalProps> = (
   const handleFastForward = async (hours: number) => {
     setSimMessage(null);
     const res = await simulateTimeFastForward(hours);
-    setSimMessage(res.error
-      ? res.error
-      : `Fast-forward +${hours}h simulated. ${res.purgedCount} photo(s) exceeded retention criteria and were permanently purged.`);
+    setSimMessage(
+      `Fast-forward +${hours}h simulated. ${res.purgedCount} photo(s) exceeded retention criteria and were permanently purged.`
+    );
   };
 
   const handleReset = async () => {
@@ -87,19 +87,19 @@ export const SimulationControlsModal: React.FC<SimulationControlsModalProps> = (
             </div>
           )}
 
-          {/* SECTION 1: Facility Cloud Storage Diagnostics */}
+          {/* SECTION 1: Local IndexedDB Diagnostics */}
           <section className="simulation-section">
             <h4 className="section-heading">
               <HardDrive className="section-icon" />
-              <span>Facility Firebase Storage Diagnostic</span>
+              <span>Client-Side IndexedDB Storage Diagnostic</span>
             </h4>
             <div className="diagnostic-grid">
               <div className="diag-box">
-                <span className="diag-label">Photos in Firebase Storage</span>
+                <span className="diag-label">Photos in IndexedDB</span>
                 <span className="diag-value">{storageSummary.totalPhotos}</span>
               </div>
               <div className="diag-box">
-                <span className="diag-label">Stored image size</span>
+                <span className="diag-label">IndexedDB Blob Size</span>
                 <span className="diag-value">{formatBytes(storageSummary.totalSizeBytes)}</span>
               </div>
               <div className="diag-box">
@@ -113,8 +113,8 @@ export const SimulationControlsModal: React.FC<SimulationControlsModalProps> = (
             </div>
 
             <p className="diag-note">
-              Images are stored in facility-scoped Firebase Storage with authenticated access rules.
-              Download URLs are not saved in workflow records.
+              Photos are stored client-side in the browser's IndexedDB (<code>hospitalflow_db / photos</code>).
+              No cloud upload, public URLs, or local storage binary leaks exist in this prototype.
             </p>
           </section>
 
@@ -176,7 +176,7 @@ export const SimulationControlsModal: React.FC<SimulationControlsModalProps> = (
               <span>Reset Prototype Environment</span>
             </h4>
             <p className="section-desc">
-              Resets the synthetic bed-turnaround cases and removes their associated photos. Other facility workflows are unchanged.
+              Clears local IndexedDB and localStorage, then reseeds 3 standard synthetic test cases.
             </p>
             <button
               type="button"
@@ -185,7 +185,7 @@ export const SimulationControlsModal: React.FC<SimulationControlsModalProps> = (
               disabled={isProcessing}
             >
               <RotateCcw className="btn-icon" />
-              <span>Reset Bed Demo Cases & Photos</span>
+              <span>Reset All Synthetic Data & Photos</span>
             </button>
           </section>
         </div>

@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import { HospitalFlowProvider, useHospitalFlow } from './context/HospitalFlowContext';
-import { FacilityDataStatusProvider, useFacilityDataStatus } from './context/FacilityDataContext';
-import { FirebaseSessionProvider } from './context/FirebaseSessionContext';
-import { FirebaseGate } from './components/FirebaseGate';
 import { Header } from './components/Header';
 import { OverviewStats } from './components/OverviewStats';
 import { CaseList } from './components/CaseList';
@@ -40,7 +37,6 @@ const HospitalFlowDashboard: React.FC = () => {
     notification,
     clearNotification,
   } = useHospitalFlow();
-  const dataStatus = useFacilityDataStatus();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSimOpen, setIsSimOpen] = useState(false);
@@ -87,15 +83,7 @@ const HospitalFlowDashboard: React.FC = () => {
       <main className="main-content">
         <div className="content-container">
           <ScenarioNavigation currentRoute={route} />
-          {dataStatus.loading ? (
-            <div className="firebase-data-message" role="status">Loading secure facility workflows…</div>
-          ) : dataStatus.errors.length > 0 ? (
-            <div className="firebase-data-message firebase-data-error" role="alert">
-              <strong>Facility data could not be loaded or saved.</strong>
-              <p>{dataStatus.errors[0].message}</p>
-              <p>Check the Firebase project setup and security rules, then reload. Changes are not stored locally as a fallback.</p>
-            </div>
-          ) : route === 'beds' ? (
+          {route === 'beds' ? (
             <>
               <OverviewStats />
               <div className={`operational-workspace mobile-${mobileView}`}>
@@ -163,7 +151,7 @@ const HospitalFlowDashboard: React.FC = () => {
           <div className="footer-right">
             <Shield className="footer-shield" />
             <span>
-              Synthetic Data Only • No Real Patient / ABHA Data • Facility-Scoped Firebase
+              Synthetic Data Prototype • No PII / ABHA Stored • IndexedDB Local Storage Retention
             </span>
           </div>
         </div>
@@ -183,15 +171,9 @@ const HospitalFlowDashboard: React.FC = () => {
 
 export function App() {
   return (
-    <FirebaseSessionProvider>
-      <FirebaseGate>
-        <FacilityDataStatusProvider>
-          <HospitalFlowProvider>
-            <HospitalFlowDashboard />
-          </HospitalFlowProvider>
-        </FacilityDataStatusProvider>
-      </FirebaseGate>
-    </FirebaseSessionProvider>
+    <HospitalFlowProvider>
+      <HospitalFlowDashboard />
+    </HospitalFlowProvider>
   );
 }
 

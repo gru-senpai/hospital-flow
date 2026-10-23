@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SetStateAction } from 'react';
-import { useFacilityData } from '../context/FacilityDataContext';
 import {
   Activity,
   AlertTriangle,
@@ -39,7 +38,24 @@ function PanelHeader({ eyebrow, title, description, icon: Icon }: PanelHeaderPro
 }
 
 function useLocalRecords<T>(key: string, initialValue: () => T): [T, (value: SetStateAction<T>) => void] {
-  return useFacilityData(key, initialValue);
+  const [records, setRecords] = useState<T>(() => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved ? JSON.parse(saved) as T : initialValue();
+    } catch {
+      return initialValue();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(records));
+    } catch {
+      // Keep the active workflow usable if localStorage is blocked
+    }
+  }, [key, records]);
+
+  return [records, setRecords];
 }
 
 function SummaryMetric({ label, value, note, tone }: { label: string; value: string; note: string; tone: string }) {

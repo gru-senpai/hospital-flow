@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Activity, Bed, Check, ClipboardCheck, Clock3, Sparkles, Users } from 'lucide-react';
-import { useFirebaseSession } from '../context/FirebaseSessionContext';
-import { useFacilityData } from '../context/FacilityDataContext';
 import './OccupancyWorkspace.css';
 
 type BedStatus = 'Available' | 'Occupied' | 'Cleaning' | 'Awaiting approval';
@@ -71,10 +69,25 @@ function formatTime(value: string) {
 }
 
 export function OccupancyWorkspace() {
-  const { profile } = useFirebaseSession();
-  const [board, setBoard] = useFacilityData<OccupancyBoard>('bed-occupancy-board-v1', () => initialBoard);
-  const canOperate = !!profile && ['admin', 'coordinator', 'operations', 'resource_manager', 'housekeeping'].includes(profile.role);
-  const canReview = !!profile && ['admin', 'coordinator'].includes(profile.role);
+  const [board, setBoard] = useState<OccupancyBoard>(() => {
+    try {
+      const saved = window.localStorage.getItem('bed-occupancy-board-v1');
+      return saved ? JSON.parse(saved) as OccupancyBoard : initialBoard;
+    } catch {
+      return initialBoard;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('bed-occupancy-board-v1', JSON.stringify(board));
+    } catch {
+      // Keep active session usable if localStorage is unavailable
+    }
+  }, [board]);
+
+  const canOperate = true;
+  const canReview = true;
   const available = board.beds.filter((bed) => bed.status === 'Available').length;
   const occupied = board.beds.filter((bed) => bed.status === 'Occupied').length;
   const cleaning = board.beds.filter((bed) => bed.status === 'Cleaning').length;
@@ -82,7 +95,7 @@ export function OccupancyWorkspace() {
   const events = useMemo(() => [...board.events].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10), [board.events]);
 
   function updateBed(bedId: string, status: BedStatus, summary: string) {
-    const actor = profile?.role.replace('_', ' ') ?? 'Staff';
+    const actor = 'Coordinator';
     setBoard((current) => {
       const bed = current.beds.find((item) => item.id === bedId);
       if (!bed) return current;
@@ -113,7 +126,7 @@ export function OccupancyWorkspace() {
       const bed = current.beds.find((item) => item.id === bedId);
       if (!bed || bed.status !== 'Cleaning') return current;
       const updated = { ...bed, assignedCrewId: crewId };
-      const event = eventFor(updated, profile?.role.replace('_', ' ') ?? 'Staff', `Cleaning assigned to ${member.name}.`);
+      const event = eventFor(updated, 'Operations', `Cleaning assigned to ${member.name}.`);
       const activeAssignments = current.beds.filter((item) => item.id !== bedId && item.status === 'Cleaning').map((item) => item.assignedCrewId);
       activeAssignments.push(crewId);
       return {
@@ -139,7 +152,7 @@ export function OccupancyWorkspace() {
             <p className="scenario-description">Coordinate bed availability, cleaning assignments, readiness review, and shift workload.</p>
           </div>
         </div>
-        <span className="occupancy-facility">{profile?.facilityName}</span>
+        <span className="occupancy-facility">General Hospital Operations</span>
       </div>
 
       <div className="occupancy-metrics">
