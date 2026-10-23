@@ -10,12 +10,14 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
+  showBedActions: boolean;
   onOpenCreate: () => void;
   onOpenSimulation: () => void;
   onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  showBedActions,
   onOpenCreate,
   onOpenSimulation,
   onOpenSettings,
@@ -36,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="demo-badge">SYNTHETIC DEMO</span>
             </div>
             <p className="brand-subtitle">
-              Hospital Room-Readiness Coordination • India Prototype
+              Hospital Resource Coordination • India Prototype
             </p>
           </div>
         </div>
@@ -48,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Global Action Buttons */}
-        <div className="header-actions">
+        {showBedActions && <div className="header-actions">
           <button
             type="button"
             className="btn btn-primary"
@@ -99,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             <RefreshCw className={`btn-icon ${isProcessing ? 'spin' : ''}`} />
             <span className="hide-on-tablet">Reset</span>
           </button>
-        </div>
+        </div>}
       </div>
     </header>
   );

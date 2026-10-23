@@ -8,6 +8,11 @@ import { CreateCaseModal } from './components/CreateCaseModal';
 import { SimulationControlsModal } from './components/SimulationControlsModal';
 import { SettingsModal } from './components/SettingsModal';
 import {
+  ScenarioNavigation,
+  ScenarioWorkspace,
+  type ScenarioRoute,
+} from './components/ScenarioWorkspace';
+import {
   Bed,
   CheckCircle2,
   AlertCircle,
@@ -16,6 +21,14 @@ import {
   ArrowLeft,
   Shield,
 } from 'lucide-react';
+
+function getScenarioRoute(pathname: string): ScenarioRoute {
+  const route = pathname.split('/').filter(Boolean)[0];
+  if (route === 'labs' || route === 'equipment' || route === 'beds' || route === 'camps') {
+    return route;
+  }
+  return 'home';
+}
 
 const HospitalFlowDashboard: React.FC = () => {
   const {
@@ -29,6 +42,7 @@ const HospitalFlowDashboard: React.FC = () => {
   const [isSimOpen, setIsSimOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [mobileView, setMobileView] = useState<'queue' | 'detail'>('queue');
+  const route = getScenarioRoute(window.location.pathname);
 
   const handleSelectCase = (id: string) => {
     setActiveCaseId(id);
@@ -39,6 +53,7 @@ const HospitalFlowDashboard: React.FC = () => {
     <div className="app-shell">
       {/* Top Operational Navigation */}
       <Header
+        showBedActions={route === 'beds'}
         onOpenCreate={() => setIsCreateOpen(true)}
         onOpenSimulation={() => setIsSimOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -67,59 +82,60 @@ const HospitalFlowDashboard: React.FC = () => {
       {/* Main Content Area */}
       <main className="main-content">
         <div className="content-container">
-          {/* Top Turnaround Overview Stats */}
-          <OverviewStats />
-
-          {/* Operational Workspace: Queue & Detail */}
-          <div className={`operational-workspace mobile-${mobileView}`}>
-            {/* Left Queue Panel */}
-            <div className="workspace-queue-pane">
-              <CaseList onSelectCase={handleSelectCase} />
-            </div>
-
-            {/* Right Case Detail Pane */}
-            <div className="workspace-detail-pane">
-              {/* Mobile Back Button */}
-              <div className="mobile-back-bar">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setMobileView('queue')}
-                >
-                  <ArrowLeft className="btn-icon" />
-                  <span>Back to Bed Queue</span>
-                </button>
-                {activeCase && (
-                  <span className="mobile-active-ref">
-                    Viewing {activeCase.caseRef} ({activeCase.bed})
-                  </span>
-                )}
-              </div>
-
-              {activeCase ? (
-                <CaseDetail key={activeCase.id} caseData={activeCase} />
-              ) : (
-                <div className="no-case-selected-card">
-                  <div className="no-case-icon-box">
-                    <Bed size={40} />
-                  </div>
-                  <h3>No Turnaround Case Selected</h3>
-                  <p>
-                    Select an operational bed case from the queue on the left, or create a new case to
-                    begin the turnaround workflow.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => setIsCreateOpen(true)}
-                  >
-                    + Create New Case
-                  </button>
+          <ScenarioNavigation currentRoute={route} />
+          {route === 'beds' ? (
+            <>
+              <OverviewStats />
+              <div className={`operational-workspace mobile-${mobileView}`}>
+                <div className="workspace-queue-pane">
+                  <CaseList onSelectCase={handleSelectCase} />
                 </div>
-              )}
+
+                <div className="workspace-detail-pane">
+                  <div className="mobile-back-bar">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setMobileView('queue')}
+                    >
+                      <ArrowLeft className="btn-icon" />
+                      <span>Back to Bed Queue</span>
+                    </button>
+                    {activeCase && (
+                      <span className="mobile-active-ref">
+                        Viewing {activeCase.caseRef} ({activeCase.bed})
+                      </span>
+                    )}
+                  </div>
+
+                  {activeCase ? (
+                    <CaseDetail key={activeCase.id} caseData={activeCase} />
+                  ) : (
+                    <div className="no-case-selected-card">
+                      <div className="no-case-icon-box">
+                        <Bed size={40} />
+                      </div>
+                      <h3>No Turnaround Case Selected</h3>
+                      <p>
+                        Select an operational bed case from the queue on the left, or create a new case to
+                        begin the turnaround workflow.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setIsCreateOpen(true)}
+                      >
+                        + Create New Case
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <ScenarioWorkspace route={route} />
+          )}
             </div>
-          </div>
-        </div>
       </main>
 
       {/* Operational Footer */}
@@ -128,7 +144,7 @@ const HospitalFlowDashboard: React.FC = () => {
           <div className="footer-left">
             <span className="footer-brand">HospitalFlow Prototype v1.0</span>
             <span className="footer-divider">•</span>
-            <span>Room Readiness Coordination System</span>
+            <span>Hospital Resource Coordination</span>
             <span className="footer-divider">•</span>
             <span className="footer-tag">India Operational Concept</span>
           </div>
@@ -142,9 +158,13 @@ const HospitalFlowDashboard: React.FC = () => {
       </footer>
 
       {/* Dialog Modals */}
-      <CreateCaseModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-      <SimulationControlsModal isOpen={isSimOpen} onClose={() => setIsSimOpen(false)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      {route === 'beds' && (
+        <>
+          <CreateCaseModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+          <SimulationControlsModal isOpen={isSimOpen} onClose={() => setIsSimOpen(false)} />
+          <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+        </>
+      )}
     </div>
   );
 };
