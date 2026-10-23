@@ -318,6 +318,14 @@ const equipment = [
   { id: 'infusion', name: 'Infusion pump set', location: 'Ward equipment pool', maintenance: '' },
 ] as const;
 
+const emergencyLifeSupportEquipment = [
+  { name: 'Defibrillators / AEDs', description: 'Restore normal heart rhythms during cardiac arrest.' },
+  { name: 'Ventilators & anesthesia machines', description: 'Provide mechanical respiratory support and gas delivery.' },
+  { name: 'Emergency crash cart', description: 'Mobile unit packed with resuscitation and airway tools.' },
+  { name: 'Oxygen cylinders & concentrators', description: 'Supply continuous medical oxygen.' },
+  { name: 'Suction units', description: 'Clear blood, mucus, and airway obstructions.' },
+];
+
 function timeAsMinutes(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
@@ -366,6 +374,20 @@ function EquipmentWorkspace() {
         <Metric label="In maintenance" value={String(equipment.filter((item) => item.maintenance).length)} note="Unavailable to book" tone="coral" />
         <Metric label="Bookings today" value={String(bookings.filter((item) => item.date === todayDate()).length)} note="All departments" tone="mint" />
       </div>
+      <section className="workflow-panel full-panel" aria-labelledby="emergency-equipment-title">
+        <div className="panel-heading">
+          <div><p className="panel-kicker">EMERGENCY &amp; LIFE SUPPORT</p><h3 id="emergency-equipment-title">Critical care equipment</h3></div>
+          <span className="panel-count">{emergencyLifeSupportEquipment.length} equipment types</span>
+        </div>
+        <ul className="life-support-grid">
+          {emergencyLifeSupportEquipment.map((item) => (
+            <li className="life-support-item" key={item.name}>
+              <strong>{item.name}</strong>
+              <p>{item.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div className="workflow-columns">
         <section className="workflow-panel booking-panel">
           <div className="panel-heading"><div><p className="panel-kicker">NEW BOOKING</p><h3>Book equipment</h3></div><span className="step-mark">01</span></div>
