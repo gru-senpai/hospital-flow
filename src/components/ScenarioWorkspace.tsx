@@ -4,12 +4,15 @@ import DotGrid from './DotGrid';
 import {
   AlertTriangle,
   ArrowRight,
+  BellRing,
   Bed,
+  Boxes,
   CalendarClock,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
+  HeartPulse,
   FlaskConical,
   Hospital,
   Layers3,
@@ -17,12 +20,20 @@ import {
   Plus,
   ShieldCheck,
   Stethoscope,
+  Users,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import {
+  AlertsWorkspace,
+  CliniciansWorkspace,
+  PharmacyWorkspace,
+  StaffWorkspace,
+  TraumaWorkspace,
+} from './EmergencyWorkspaces';
 import './ScenarioWorkspace.css';
 
-export type ScenarioRoute = 'home' | 'labs' | 'equipment' | 'beds' | 'camps';
+export type ScenarioRoute = 'home' | 'labs' | 'equipment' | 'beds' | 'camps' | 'pharmacy' | 'trauma' | 'clinicians' | 'staff' | 'alerts';
 
 const routePaths: Record<ScenarioRoute, string> = {
   home: '/',
@@ -30,6 +41,11 @@ const routePaths: Record<ScenarioRoute, string> = {
   equipment: '/equipment',
   beds: '/beds',
   camps: '/camps',
+  pharmacy: '/pharmacy',
+  trauma: '/trauma',
+  clinicians: '/clinicians',
+  staff: '/staff',
+  alerts: '/alerts',
 };
 
 const scenarios = [
@@ -37,6 +53,11 @@ const scenarios = [
   { id: 'equipment', title: 'Equipment booking', detail: 'Book shared equipment and see maintenance outages.', icon: Wrench, tone: 'blue', path: routePaths.equipment },
   { id: 'beds', title: 'Clinic beds', detail: 'Coordinate housekeeping, review, and room readiness.', icon: Bed, tone: 'coral', path: routePaths.beds },
   { id: 'camps', title: 'Health camp', detail: 'Allocate resource units against camp capacity.', icon: Stethoscope, tone: 'gold', path: routePaths.camps },
+  { id: 'pharmacy', title: 'Emergency pharmacy', detail: 'Monitor critical medicines, tools, and low-stock supplies.', icon: Boxes, tone: 'coral', path: routePaths.pharmacy },
+  { id: 'trauma', title: 'Emergency & trauma', detail: 'See room readiness and available trauma bays at a glance.', icon: HeartPulse, tone: 'mint', path: routePaths.trauma },
+  { id: 'clinicians', title: 'Doctor schedule', detail: 'Review on-duty clinicians and upcoming coverage.', icon: CalendarClock, tone: 'blue', path: routePaths.clinicians },
+  { id: 'staff', title: 'Staff availability', detail: 'Check shift coverage across hospital departments.', icon: Users, tone: 'gold', path: routePaths.staff },
+  { id: 'alerts', title: 'General alerts', detail: 'Review and acknowledge cross-team operational issues.', icon: BellRing, tone: 'coral', path: routePaths.alerts },
 ] as const;
 
 const navigationItems = [
@@ -45,6 +66,11 @@ const navigationItems = [
   { id: 'equipment', title: 'Equipment', icon: Wrench, path: routePaths.equipment },
   { id: 'beds', title: 'Clinic beds', icon: Bed, path: routePaths.beds },
   { id: 'camps', title: 'Health camps', icon: Stethoscope, path: routePaths.camps },
+  { id: 'pharmacy', title: 'Pharmacy', icon: Boxes, path: routePaths.pharmacy },
+  { id: 'trauma', title: 'Trauma', icon: HeartPulse, path: routePaths.trauma },
+  { id: 'clinicians', title: 'Doctors', icon: CalendarClock, path: routePaths.clinicians },
+  { id: 'staff', title: 'Staff', icon: Users, path: routePaths.staff },
+  { id: 'alerts', title: 'Alerts', icon: BellRing, path: routePaths.alerts },
 ] as const;
 
 export function ScenarioNavigation({ currentRoute }: { currentRoute: ScenarioRoute }) {
@@ -208,7 +234,7 @@ function ScenarioHome() {
 }
 
 const labTimes = ['08:30', '09:30', '10:30', '11:30', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-const labTests = ['Complete blood count', 'Basic metabolic panel', 'Liver function panel', 'Thyroid profile', 'Ultrasound scan'];
+const labTests = ['Complete blood count', 'Basic metabolic panel', 'Liver function panel', 'Thyroid profile', 'X-ray', 'CT scan', 'MRI scan', 'Ultrasound scan'];
 
 function LabWorkspace() {
   const [reservations, setReservations] = usePersistentState<LabReservation[]>('hospital-flow-lab-reservations-v1', () => [
@@ -247,7 +273,7 @@ function LabWorkspace() {
 
   return (
     <section className="scenario-workspace">
-      <PageHeading eyebrow="DIAGNOSTICS" title="Lab availability" description="Reserve diagnostic capacity and resolve slot conflicts before work is scheduled." icon={FlaskConical} />
+      <PageHeading eyebrow="EMERGENCY DIAGNOSTICS" title="Lab availability" description="Coordinate urgent lab tests and imaging, including X-ray, CT, MRI, and ultrasound." icon={FlaskConical} />
       <div className="scenario-metrics">
         <Metric label="Available slots" value={String(availableTimes.length)} note="For selected date" tone="mint" />
         <Metric label="Reservations" value={String(reservations.filter((item) => item.date === date).length)} note="For selected date" tone="blue" />
@@ -443,5 +469,10 @@ export function ScenarioWorkspace({ route }: { route: ScenarioRoute }) {
   if (route === 'labs') return <LabWorkspace />;
   if (route === 'equipment') return <EquipmentWorkspace />;
   if (route === 'camps') return <CampWorkspace />;
+  if (route === 'pharmacy') return <PharmacyWorkspace />;
+  if (route === 'trauma') return <TraumaWorkspace />;
+  if (route === 'clinicians') return <CliniciansWorkspace />;
+  if (route === 'staff') return <StaffWorkspace />;
+  if (route === 'alerts') return <AlertsWorkspace />;
   return null;
 }

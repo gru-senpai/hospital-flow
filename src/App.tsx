@@ -24,7 +24,7 @@ import {
 
 function getScenarioRoute(pathname: string): ScenarioRoute {
   const route = pathname.split('/').filter(Boolean)[0];
-  if (route === 'labs' || route === 'equipment' || route === 'beds' || route === 'camps') {
+  if (route === 'labs' || route === 'equipment' || route === 'beds' || route === 'camps' || route === 'pharmacy' || route === 'trauma' || route === 'clinicians' || route === 'staff' || route === 'alerts') {
     return route;
   }
   return 'home';
