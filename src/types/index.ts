@@ -17,6 +17,8 @@ export interface EventLog {
     | 'BILLING_HANDOFF'
     | 'ROOM_DEPARTURE'
     | 'CLEANING_STARTED'
+    | 'HOUSEKEEPING_CLAIMED'
+    | 'HOUSEKEEPING_CHECKLIST'
     | 'PHOTO_UPLOADED'
     | 'APPROVAL_NOTICE'
     | 'REJECTION_NOTICE'
@@ -52,6 +54,9 @@ export interface HospitalCase {
   // Step 3: Housekeeping Cleaning
   cleaningStarted: boolean;
   cleaningStartedAt?: string;
+  housekeepingClaimedBy?: string;
+  housekeepingClaimedAt?: string;
+  housekeepingChecklist?: { linenRemoved: boolean; surfacesDisinfected: boolean; bedRailsSanitized: boolean; wasteDisposed: boolean; fixturesChecked: boolean };
 
   // Step 4: Housekeeping Photo & Review
   photoUploaded: boolean;
@@ -362,6 +367,8 @@ export interface OperationalAlert {
 // ==========================================
 export type AppRoute =
   | 'dashboard'
+  | 'nurse'
+  | 'housekeeping'
   | 'labs'
   | 'equipment'
   | 'beds'
@@ -373,4 +380,5 @@ export type AppRoute =
   | 'alerts'
   | 'reports'
   | 'settings';
+
 
