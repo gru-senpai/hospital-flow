@@ -78,8 +78,8 @@ export const TopNav: React.FC<TopNavProps> = ({
         <h1 className="topnav-heading">{currentInfo.title}</h1>
       </div>
 
-      {/* Global Search Bar */}
-      <div className="topnav-search-wrap">
+      {/* Global Search Bar (Full on Desktop, Compact on Mobile) */}
+      <div className="topnav-search-wrap desktop-only">
         <button
           type="button"
           className="topnav-search-trigger"
@@ -94,6 +94,17 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Right Controls */}
       <div className="topnav-actions">
+        {/* Mobile Search Button */}
+        <button
+          type="button"
+          className="mobile-search-btn mobile-only"
+          onClick={onOpenSearch}
+          aria-label="Search resources"
+          title="Search all hospital resources"
+        >
+          <Search size={18} />
+        </button>
+
         {/* Sync & Data Freshness */}
         <button
           type="button"
@@ -102,12 +113,12 @@ export const TopNav: React.FC<TopNavProps> = ({
           title="Click to force data sync across operational stations"
         >
           <span className="sync-live-dot" />
-          <span className="sync-text">Live Sync • {formatFreshness()}</span>
+          <span className="sync-text desktop-only">Live Sync • {formatFreshness()}</span>
           <RefreshCw size={13} className="sync-refresh-icon" />
         </button>
 
         {/* Facility Selector */}
-        <div className="facility-selector-badge" title="Active facility network">
+        <div className="facility-selector-badge desktop-only" title="Active facility network">
           <Building size={14} className="facility-icon" />
           <span className="facility-name">Apollo Central Hospital</span>
         </div>
@@ -128,7 +139,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         {currentRoute === 'beds' && onOpenCreateCase && (
           <button
             type="button"
-            className="btn btn-primary btn-sm topnav-primary-action"
+            className="btn btn-primary btn-sm topnav-primary-action desktop-only"
             onClick={onOpenCreateCase}
           >
             <PlusCircle size={15} />
@@ -139,7 +150,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         {currentRoute === 'alerts' && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm desktop-only"
             onClick={() => onNavigate('dashboard')}
           >
             <span>Overview Dashboard</span>
