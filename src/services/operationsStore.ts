@@ -783,7 +783,9 @@ function load<T>(key: string, initial: T): T {
 
 function save<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    if (localStorage.getItem(key) === serialized) return;
+    localStorage.setItem(key, serialized);
   } catch (err) {
     console.error(`[HospitalFlow] Failed to write ${key} to localStorage`, err);
   }
@@ -805,6 +807,29 @@ export function useOperationsData() {
   const [staff, setStaff] = useState<StaffMember[]>(() => load(KEYS.STAFF, INITIAL_STAFF));
   const [alerts, setAlerts] = useState<OperationalAlert[]>(() => load(KEYS.ALERTS, INITIAL_ALERTS));
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+
+  // Keep already-open tabs aligned with browser-local prototype records.
+  useEffect(() => {
+    const setters: Record<string, (value: unknown[]) => void> = {
+      [KEYS.LABS]: (value) => setLabs(value as LabInstrument[]),
+      [KEYS.LAB_RESERVATIONS]: (value) => setLabReservations(value as LabReservation[]),
+      [KEYS.EQUIPMENT]: (value) => setEquipment(value as EquipmentItem[]),
+      [KEYS.DOCTORS]: (value) => setDoctors(value as DoctorScheduleEntry[]),
+      [KEYS.ALERTS]: (value) => setAlerts(value as OperationalAlert[]),
+    };
+    const sync = (event: StorageEvent) => {
+      if (!event.key || !event.newValue || !setters[event.key]) return;
+      try {
+        const value: unknown = JSON.parse(event.newValue);
+        if (Array.isArray(value)) setters[event.key](value);
+        setLastSyncTime(new Date());
+      } catch (error) {
+        console.warn('[HospitalFlow] Could not sync operational data', error);
+      }
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
 
   // Synchronize to localStorage
   useEffect(() => { save(KEYS.LABS, labs); }, [labs]);
@@ -1153,6 +1178,24 @@ export function useOperationsData() {
   }, [triggerSync]);
 
   // --------------------------------------------------------------------------
+  const createWardCleaningCall = useCallback((ward: string, summary: string) => {
+    const duplicate = alerts.find((a) => a.category === 'FACILITY_SAFETY' && a.status !== 'RESOLVED' && a.department === ward && a.summary === summary);
+    if (duplicate) return { success: false, error: 'A matching open cleaning call already exists.' };
+    const call: OperationalAlert = {
+      id: 'ALERT-CLEAN-' + crypto.randomUUID(),
+      title: 'Ward cleaning call',
+      category: 'FACILITY_SAFETY',
+      severity: 'WARNING',
+      status: 'NEW',
+      department: ward,
+      summary,
+      timestamp: new Date().toISOString(),
+    };
+    setAlerts((prev) => [call, ...prev]);
+    triggerSync();
+    return { success: true, alert: call };
+  }, [alerts, triggerSync]);
+
   // Global Reset
   // --------------------------------------------------------------------------
   const resetAllOperationalData = useCallback(() => {
@@ -1207,6 +1250,7 @@ export function useOperationsData() {
     alerts,
     acknowledgeAlert,
     resolveAlert,
+    createWardCleaningCall,
     resetAllOperationalData,
     lastSyncTime,
     triggerSync,
