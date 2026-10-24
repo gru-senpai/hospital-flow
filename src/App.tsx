@@ -18,6 +18,8 @@ import { StaffAvailability } from './components/staff/StaffAvailability';
 import { OperationalAlerts } from './components/alerts/OperationalAlerts';
 import { ReportsWorkspace } from './components/reports/ReportsWorkspace';
 import { SettingsWorkspace } from './components/settings/SettingsWorkspace';
+import { NursePanel } from './components/roles/NursePanel';
+import { HousekeepingPanel } from './components/roles/HousekeepingPanel';
 
 import { CreateCaseModal } from './components/CreateCaseModal';
 import { SimulationControlsModal } from './components/SimulationControlsModal';
@@ -31,6 +33,8 @@ function getInitialRoute(): AppRoute {
   const path = window.location.pathname.replace(/^\//, '').toLowerCase();
   const validRoutes: AppRoute[] = [
     'dashboard',
+    'nurse',
+    'housekeeping',
     'labs',
     'equipment',
     'beds',
@@ -49,7 +53,14 @@ function getInitialRoute(): AppRoute {
 }
 
 const HospitalFlowCommandCenter: React.FC = () => {
-  const [currentRoute, setCurrentRoute] = useState<AppRoute>(getInitialRoute);
+  const [demoRole, setDemoRole] = useState<'coordinator' | 'nurse' | 'housekeeping'>(() => {
+    const saved = window.localStorage.getItem('hospitalflow_demo_role');
+    return saved === 'nurse' || saved === 'housekeeping' ? saved : 'coordinator';
+  });
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(() => {
+    const saved = window.localStorage.getItem('hospitalflow_demo_role');
+    return saved === 'nurse' ? 'nurse' : saved === 'housekeeping' ? 'housekeeping' : getInitialRoute();
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -60,10 +71,18 @@ const HospitalFlowCommandCenter: React.FC = () => {
 
   const { notification, clearNotification } = useHospitalFlow();
 
+  useEffect(() => {
+    if (demoRole === 'coordinator') return;
+    const expected = '/' + demoRole;
+    if (window.location.pathname !== expected) window.history.replaceState(null, '', expected);
+  }, [demoRole]);
+
   // Listen to browser popstate (back/forward)
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentRoute(getInitialRoute());
+      const route = getInitialRoute();
+      const role = window.localStorage.getItem('hospitalflow_demo_role');
+      setCurrentRoute(role === 'nurse' ? 'nurse' : role === 'housekeeping' ? 'housekeeping' : route);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -82,9 +101,11 @@ const HospitalFlowCommandCenter: React.FC = () => {
   }, []);
 
   const navigateTo = (route: AppRoute) => {
-    setCurrentRoute(route);
+    const allowed = demoRole === 'coordinator' || (demoRole === 'nurse' && route === 'nurse') || (demoRole === 'housekeeping' && route === 'housekeeping');
+    const target = allowed ? route : demoRole === 'nurse' ? 'nurse' : demoRole === 'housekeeping' ? 'housekeeping' : route;
+    setCurrentRoute(target);
     setMobileMenuOpen(false);
-    const path = route === 'dashboard' ? '/' : `/${route}`;
+    const path = target === 'dashboard' ? '/' : `/${target}`;
     if (window.location.pathname !== path) {
       window.history.pushState(null, '', path);
     }
@@ -96,6 +117,14 @@ const HospitalFlowCommandCenter: React.FC = () => {
       {/* Deep-Navy Sidebar */}
       <Sidebar
         currentRoute={currentRoute}
+        demoRole={demoRole}
+        onDemoRoleChange={(role) => {
+          setDemoRole(role);
+          window.localStorage.setItem('hospitalflow_demo_role', role);
+          const next = role === 'nurse' ? 'nurse' : role === 'housekeeping' ? 'housekeeping' : 'dashboard';
+          setCurrentRoute(next);
+          window.history.pushState(null, '', next === 'dashboard' ? '/' : `/${next}`);
+        }}
         onNavigate={navigateTo}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
@@ -137,6 +166,9 @@ const HospitalFlowCommandCenter: React.FC = () => {
 
         {/* Scrollable Page Body */}
         <main className="app-scrollable-content">
+          {currentRoute === 'nurse' && <NursePanel />}
+          {currentRoute === 'housekeeping' && <HousekeepingPanel />}
+
           {currentRoute === 'dashboard' && (
             <OperationsDashboard
               onNavigate={navigateTo}
@@ -175,16 +207,11 @@ const HospitalFlowCommandCenter: React.FC = () => {
         <footer className="app-footer">
           <div className="footer-container">
             <div className="footer-left">
-              <img
-                src="/hospitalflow-logo.jpg"
-                alt="HospitalFlow Logo"
-                className="footer-logo-img"
-              />
               <span className="footer-brand">HospitalFlow Enterprise</span>
               <span className="footer-divider">•</span>
               <span>Healthcare Resource Coordination Platform</span>
               <span className="footer-divider">•</span>
-              <span className="footer-tag">CONNECT • COORDINATE • CARE</span>
+              <span className="footer-tag">India Operational Concept</span>
             </div>
             <div className="footer-right">
               <Shield className="footer-shield" />
