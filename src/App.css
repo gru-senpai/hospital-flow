@@ -415,6 +415,14 @@
   color: #1e293b;
 }
 
+.topnav-search-inline-icon {
+  position: static !important;
+  color: #64748b;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
 .search-placeholder {
   flex: 1;
   text-align: left;

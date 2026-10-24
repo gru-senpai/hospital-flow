@@ -93,7 +93,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           onClick={onOpenSearch}
           title="Search all hospital resources (Ctrl + K)"
         >
-          <Search size={16} className="search-icon" />
+          <Search size={16} className="topnav-search-inline-icon" />
           <span className="search-placeholder">Search beds, equipment, drugs, doctors...</span>
           <kbd className="search-kbd">⌘K</kbd>
         </button>
