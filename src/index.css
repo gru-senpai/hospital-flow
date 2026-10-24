@@ -2283,6 +2283,16 @@ textarea:focus-visible,
   gap: 0.5rem;
 }
 
+.footer-logo-img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 6px;
+  background-color: var(--color-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
 .footer-brand {
   font-weight: 700;
   color: var(--color-navy-800);

@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  Building2,
 } from 'lucide-react';
 import type { AppRoute } from '../../types';
 import { useOperations } from '../../context/OperationsContext';
@@ -135,14 +134,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'is-mobile-open' : ''}`}>
       {/* Brand & Wordmark */}
       <div className="sidebar-brand-box">
-        <div className="brand-icon-wrap" aria-hidden="true">
-          <Building2 className="brand-logo-icon" size={22} />
+        <div className="brand-icon-wrap" aria-hidden="true" title="HospitalFlow Operations">
+          <img
+            src="/hospitalflow-logo.jpg"
+            alt="HospitalFlow Logo"
+            className="brand-logo-img"
+          />
           <span className="live-status-dot" title="Operations Network Online" />
         </div>
         {!collapsed && (
           <div className="brand-info">
             <span className="brand-name">HospitalFlow</span>
-            <span className="brand-subtitle">Command Center v2.4</span>
+            <span className="brand-subtitle">Connect • Coordinate • Care</span>
           </div>
         )}
         <button

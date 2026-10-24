@@ -175,11 +175,16 @@ const HospitalFlowCommandCenter: React.FC = () => {
         <footer className="app-footer">
           <div className="footer-container">
             <div className="footer-left">
+              <img
+                src="/hospitalflow-logo.jpg"
+                alt="HospitalFlow Logo"
+                className="footer-logo-img"
+              />
               <span className="footer-brand">HospitalFlow Enterprise</span>
               <span className="footer-divider">•</span>
               <span>Healthcare Resource Coordination Platform</span>
               <span className="footer-divider">•</span>
-              <span className="footer-tag">India Operational Concept</span>
+              <span className="footer-tag">CONNECT • COORDINATE • CARE</span>
             </div>
             <div className="footer-right">
               <Shield className="footer-shield" />

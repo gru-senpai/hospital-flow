@@ -55,15 +55,22 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header className="app-topnav">
-      {/* Mobile Menu Button */}
-      <button
-        type="button"
-        className="mobile-menu-trigger"
-        onClick={onToggleMobileMenu}
-        aria-label="Toggle navigation menu"
-      >
-        <Menu size={20} />
-      </button>
+      {/* Mobile Menu & Brand */}
+      <div className="mobile-header-brand">
+        <button
+          type="button"
+          className="mobile-menu-trigger"
+          onClick={onToggleMobileMenu}
+          aria-label="Toggle navigation menu"
+        >
+          <Menu size={20} />
+        </button>
+        <img
+          src="/hospitalflow-logo.jpg"
+          alt="HospitalFlow"
+          className="mobile-brand-logo"
+        />
+      </div>
 
       {/* Breadcrumb & Contextual Title */}
       <div className="topnav-titles">
