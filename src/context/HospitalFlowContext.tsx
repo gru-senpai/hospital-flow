@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type {
   HospitalCase,
   CaseStatus,
@@ -43,6 +43,8 @@ interface HospitalFlowContextType {
   toggleBillingHandoff: (caseId: string) => void;
   confirmRoomDeparture: (caseId: string) => void;
   startCleaning: (caseId: string) => void;
+  claimHousekeepingTask: (caseId: string) => void;
+  updateHousekeepingChecklist: (caseId: string, checklist: NonNullable<HospitalCase['housekeepingChecklist']>) => void;
   uploadPhoto: (
     caseId: string,
     file: File | Blob,
@@ -66,6 +68,7 @@ const HospitalFlowContext = createContext<HospitalFlowContextType | undefined>(u
 
 export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cases, setCases] = useState<HospitalCase[]>([]);
+  const uploadInFlightRef = useRef(new Set<string>());
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
   const [settings, setSettings] = useState<WorkflowSettings>(loadSettings);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -111,6 +114,21 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     },
     []
   );
+
+  // Browser-local cross-tab sync. This is not a shared multi-user backend.
+  useEffect(() => {
+    const syncCases = (event: StorageEvent) => {
+      if (event.key !== 'hospitalflow_cases_v1' || !event.newValue) return;
+      try {
+        const next = JSON.parse(event.newValue) as HospitalCase[];
+        if (Array.isArray(next)) setCases(next);
+      } catch (error) {
+        console.warn('[HospitalFlow] Could not sync case updates', error);
+      }
+    };
+    window.addEventListener('storage', syncCases);
+    return () => window.removeEventListener('storage', syncCases);
+  }, []);
 
   // Periodic and on-load auto-purge check
   const runAutoPurge = useCallback(async () => {
@@ -368,7 +386,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const nowIso = new Date().toISOString();
       updateCases((prev) =>
         prev.map((c) => {
-          if (c.id !== caseId) return c;
+          if (c.id !== caseId || !c.departureConfirmed || (c.cleaningStarted && c.status !== 'REJECTED_RECLEAN')) return c;
           const evt: EventLog = {
             id: `evt-${Date.now()}`,
             caseRef: c.caseRef,
@@ -390,6 +408,25 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [updateCases]
   );
 
+  const claimHousekeepingTask = useCallback((caseId: string) => {
+    const timestamp = new Date().toISOString();
+    updateCases((prev) => prev.map((c) => {
+      if (c.id !== caseId || !c.departureConfirmed || c.housekeepingClaimedBy || c.status === 'AWAITING_REVIEW' || c.status === 'BED_READY') return c;
+      const event: EventLog = { id: `evt-${Date.now()}`, caseRef: c.caseRef, timestamp, type: 'HOUSEKEEPING_CLAIMED', actorLabel: 'Housekeeping (Demo Operator)', summary: 'Housekeeping task claimed by the demo operator.' };
+      return { ...c, housekeepingClaimedBy: 'Housekeeping Demo Operator', housekeepingClaimedAt: timestamp, events: [event, ...c.events] };
+    }));
+  }, [updateCases]);
+
+  const updateHousekeepingChecklist = useCallback((caseId: string, checklist: NonNullable<HospitalCase['housekeepingChecklist']>) => {
+    const timestamp = new Date().toISOString();
+    updateCases((prev) => prev.map((c) => {
+      if (c.id !== caseId || !c.departureConfirmed || c.status === 'AWAITING_REVIEW' || c.status === 'BED_READY') return c;
+      if (JSON.stringify(c.housekeepingChecklist || {}) === JSON.stringify(checklist)) return c;
+      const event: EventLog = { id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, caseRef: c.caseRef, timestamp, type: 'HOUSEKEEPING_CHECKLIST', actorLabel: 'Housekeeping (Demo Operator)', summary: 'Housekeeping checklist updated.' };
+      return { ...c, housekeepingChecklist: checklist, events: [event, ...c.events] };
+    }));
+  }, [updateCases]);
+
   // 6. Housekeeping Uploads Photo
   const uploadPhoto = useCallback(
     async (
@@ -397,6 +434,12 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
       file: File | Blob,
       mimeType: string = 'image/jpeg'
     ): Promise<{ success: boolean; error?: string }> => {
+      if (uploadInFlightRef.current.has(caseId)) return { success: true };
+      const targetCase = cases.find((item) => item.id === caseId);
+      if (!targetCase) return { success: false, error: 'Case not found.' };
+      if (targetCase.status === 'AWAITING_REVIEW' || targetCase.status === 'BED_READY') return { success: true };
+      if (!targetCase.departureConfirmed) return { success: false, error: 'A confirmed room departure is required.' };
+      uploadInFlightRef.current.add(caseId);
       setIsProcessing(true);
       try {
         if (file instanceof File) {
@@ -456,9 +499,11 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const msg = err instanceof Error ? err.message : 'Unexpected upload failure';
         showNotification('error', msg);
         return { success: false, error: msg };
+      } finally {
+        uploadInFlightRef.current.delete(caseId);
       }
     },
-    [settings.pendingPhotoExpiryDays, showNotification, updateCases, refreshStorageSummary]
+    [cases, settings.pendingPhotoExpiryDays, showNotification, updateCases, refreshStorageSummary]
   );
 
   // 7. Coordinator Approves Bed Ready
@@ -571,6 +616,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
             return {
               ...item,
               status: 'REJECTED_RECLEAN',
+              housekeepingChecklist: { linenRemoved: false, surfacesDisinfected: false, bedRailsSanitized: false, wasteDisposed: false, fixturesChecked: false },
               photoUploaded: false,
               photoUploadedAt: undefined,
               photoExpiresAt: undefined,
@@ -767,6 +813,8 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         toggleBillingHandoff,
         confirmRoomDeparture,
         startCleaning,
+        claimHousekeepingTask,
+        updateHousekeepingChecklist,
         uploadPhoto,
         approveBedReady,
         rejectBedPhoto,
