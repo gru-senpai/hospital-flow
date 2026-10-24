@@ -3225,5 +3225,639 @@
   }
 }
 
+/* ==========================================================================
+   Role & Persona Workspace Segregation Styles
+   ========================================================================== */
+
+/* TopNav Persona Pill */
+.topnav-persona-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.28rem 0.65rem 0.28rem 0.35rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex-shrink: 0;
+}
+
+.topnav-persona-pill:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.persona-avatar-xs {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.persona-nav-label {
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.persona-nav-icon {
+  color: #64748b;
+  margin-left: 0.1rem;
+}
+
+/* Persona Workspace Banner (HUD) */
+.persona-workspace-banner {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.65rem 2rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  position: relative;
+  z-index: 30;
+  transition: all 0.2s ease;
+}
+
+.persona-workspace-banner.tone-blue {
+  border-left: 4px solid #2563eb;
+  background: linear-gradient(to right, #f8faff 0%, #ffffff 100%);
+}
+
+.persona-workspace-banner.tone-teal {
+  border-left: 4px solid #0d9488;
+  background: linear-gradient(to right, #f4fbfb 0%, #ffffff 100%);
+}
+
+.persona-workspace-banner.tone-red {
+  border-left: 4px solid #dc2626;
+  background: linear-gradient(to right, #fff8f8 0%, #ffffff 100%);
+}
+
+.persona-workspace-banner.tone-amber {
+  border-left: 4px solid #d97706;
+  background: linear-gradient(to right, #fffbf4 0%, #ffffff 100%);
+}
+
+.persona-workspace-banner.tone-purple {
+  border-left: 4px solid #7c3aed;
+  background: linear-gradient(to right, #faf8ff 0%, #ffffff 100%);
+}
+
+.persona-workspace-banner.tone-indigo {
+  border-left: 4px solid #0c1427;
+  background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
+}
+
+.persona-banner-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.persona-banner-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.persona-banner-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.persona-banner-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.persona-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.persona-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.persona-role-badge.badge-blue {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.persona-role-badge.badge-teal {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.persona-role-badge.badge-red {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.persona-role-badge.badge-amber {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.persona-role-badge.badge-purple {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
+.persona-role-badge.badge-indigo {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.persona-shift-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.persona-name-area {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+
+.persona-name {
+  color: #0f172a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.persona-area-divider {
+  color: #cbd5e1;
+}
+
+.persona-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Persona Live Metrics */
+.persona-live-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.persona-metric-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.persona-metric-pill:hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.persona-metric-pill.pill-alert {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+
+.metric-pill-val {
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.metric-pill-lbl {
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Persona Banner Right Controls */
+.persona-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.persona-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.persona-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.8rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.persona-switch-btn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Sidebar Role Segregation */
+.secondary-modules-section {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #1e293b;
+}
+
+.secondary-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.85rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.secondary-section-toggle:hover {
+  color: #94a3b8;
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.collapsed-divider {
+  height: 1px;
+  background-color: #1e293b;
+  margin: 0.75rem 0.5rem;
+}
+
+.operator-switch-icon {
+  margin-left: auto;
+  color: #64748b;
+  transition: transform 0.15s ease;
+}
+
+.operator-card:hover .operator-switch-icon {
+  color: #38bdf8;
+  transform: translateX(2px);
+}
+
+/* Persona Selector Modal */
+.persona-modal-card {
+  background-color: #ffffff;
+  border-radius: 14px;
+  max-width: 980px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+.persona-modal-header {
+  padding: 1.5rem 2rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.persona-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #0284c7;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.45rem;
+}
+
+.persona-modal-header h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+}
+
+.persona-header-sub {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+  max-width: 680px;
+  line-height: 1.4;
+}
+
+.persona-modal-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.persona-modal-close:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.persona-grid {
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.15rem;
+}
+
+.persona-option-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.15rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.persona-option-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: #94a3b8;
+}
+
+.persona-option-card.is-selected {
+  border-width: 2px;
+  border-color: #0284c7;
+  background: #f0f9ff;
+}
+
+.persona-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.persona-avatar-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.persona-title-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.persona-card-role-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.persona-card-name {
+  font-size: 0.98rem;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.persona-card-dept {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.persona-select-indicator {
+  flex-shrink: 0;
+}
+
+.selected-check-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: #0284c7;
+  color: #ffffff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+}
+
+.switch-to-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background-color: #f1f5f9;
+  color: #475569;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  transition: all 0.15s ease;
+}
+
+.persona-option-card:hover .switch-to-pill {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.persona-meta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0.75rem;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #475569;
+  margin-bottom: 0.85rem;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.persona-responsibilities-box {
+  margin-bottom: 0.85rem;
+  flex: 1;
+}
+
+.resp-title {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.3rem;
+}
+
+.resp-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.resp-list li {
+  margin-bottom: 0.2rem;
+}
+
+.persona-quick-routes {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.65rem;
+}
+
+.quick-routes-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.routes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.route-chip {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.persona-modal-footer {
+  padding: 1rem 2rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-footer-security {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+@media (max-width: 960px) {
+  .persona-workspace-banner {
+    padding: 0.65rem 1rem;
+  }
+
+  .persona-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .persona-banner-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .persona-live-metrics {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+}
+
 
 

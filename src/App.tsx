@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { HospitalFlowProvider, useHospitalFlow } from './context/HospitalFlowContext';
 import { OperationsProvider } from './context/OperationsContext';
+import { RoleProvider } from './context/RoleContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
 import { BottomNav } from './components/layout/BottomNav';
 import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
 import { NotificationDrawer } from './components/layout/NotificationDrawer';
+import { PersonaWorkspaceBanner } from './components/layout/PersonaWorkspaceBanner';
+import { PersonaSelectorModal } from './components/layout/PersonaSelectorModal';
 
 import { OperationsDashboard } from './components/dashboard/OperationsDashboard';
 import { NurseStation } from './components/staff/NurseStation';
@@ -62,6 +65,7 @@ const HospitalFlowCommandCenter: React.FC = () => {
   const [isCreateCaseOpen, setIsCreateCaseOpen] = useState(false);
   const [isSimOpen, setIsSimOpen] = useState(false);
   const [isOldSettingsOpen, setIsOldSettingsOpen] = useState(false);
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
   const { notification, clearNotification } = useHospitalFlow();
 
@@ -98,7 +102,7 @@ const HospitalFlowCommandCenter: React.FC = () => {
 
   return (
     <div className="app-enterprise-shell">
-      {/* Deep-Navy Sidebar */}
+      {/* Deep-Navy Sidebar with Role-aware grouping */}
       <Sidebar
         currentRoute={currentRoute}
         onNavigate={navigateTo}
@@ -106,6 +110,7 @@ const HospitalFlowCommandCenter: React.FC = () => {
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
       />
 
       {/* Main Viewport */}
@@ -118,6 +123,14 @@ const HospitalFlowCommandCenter: React.FC = () => {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenCreateCase={() => setIsCreateCaseOpen(true)}
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+          onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
+        />
+
+        {/* Role-Based Operational Persona Workspace HUD */}
+        <PersonaWorkspaceBanner
+          currentRoute={currentRoute}
+          onNavigate={navigateTo}
+          onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
         />
 
         {/* Global Toast Notification */}
@@ -218,6 +231,12 @@ const HospitalFlowCommandCenter: React.FC = () => {
       </div>
 
       {/* Global Modals & Drawers */}
+      <PersonaSelectorModal
+        isOpen={isPersonaModalOpen}
+        onClose={() => setIsPersonaModalOpen(false)}
+        onNavigate={navigateTo}
+      />
+
       <GlobalSearchModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
@@ -252,7 +271,9 @@ export function App() {
   return (
     <OperationsProvider>
       <HospitalFlowProvider>
-        <HospitalFlowCommandCenter />
+        <RoleProvider>
+          <HospitalFlowCommandCenter />
+        </RoleProvider>
       </HospitalFlowProvider>
     </OperationsProvider>
   );

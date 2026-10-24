@@ -6,9 +6,11 @@ import {
   Building,
   PlusCircle,
   Menu,
+  UserCheck,
 } from 'lucide-react';
 import type { AppRoute } from '../../types';
 import { useOperations } from '../../context/OperationsContext';
+import { useRole } from '../../context/RoleContext';
 
 interface TopNavProps {
   currentRoute: AppRoute;
@@ -17,6 +19,7 @@ interface TopNavProps {
   onOpenNotifications: () => void;
   onOpenCreateCase?: () => void;
   onToggleMobileMenu: () => void;
+  onOpenPersonaModal?: () => void;
 }
 
 const ROUTE_LABELS: Record<AppRoute, { title: string; breadcrumb: string }> = {
@@ -43,8 +46,10 @@ export const TopNav: React.FC<TopNavProps> = ({
   onOpenNotifications,
   onOpenCreateCase,
   onToggleMobileMenu,
+  onOpenPersonaModal,
 }) => {
   const { alerts, lastSyncTime, triggerSync } = useOperations();
+  const { currentPersona } = useRole();
   const activeAlerts = alerts.filter((a) => a.status !== 'RESOLVED').length;
   const currentInfo = ROUTE_LABELS[currentRoute] || { title: 'HospitalFlow', breadcrumb: 'Operations' };
 
@@ -127,6 +132,23 @@ export const TopNav: React.FC<TopNavProps> = ({
           <Building size={14} className="facility-icon" />
           <span className="facility-name">Apollo Central Hospital</span>
         </div>
+
+        {/* Role Persona Switcher Pill */}
+        <button
+          type="button"
+          className={`topnav-persona-pill tone-${currentPersona.badgeTone}`}
+          onClick={onOpenPersonaModal}
+          title={`Active Workspace: ${currentPersona.name} (${currentPersona.roleShort}) - Click to switch role`}
+        >
+          <span
+            className="persona-avatar-xs"
+            style={{ backgroundColor: currentPersona.avatarColor }}
+          >
+            {currentPersona.initials}
+          </span>
+          <span className="persona-nav-label desktop-only">{currentPersona.roleShort}</span>
+          <UserCheck size={13} className="persona-nav-icon" />
+        </button>
 
         {/* Notifications Bell */}
         <button
