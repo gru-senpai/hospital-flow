@@ -2837,6 +2837,14 @@
     background-color: #10b981;
   }
 
+  .bottom-tab-badge.tone-blue {
+    background-color: #2563eb;
+  }
+
+  .bottom-tab-badge.tone-teal {
+    background-color: #0d9488;
+  }
+
   .bottom-tab-badge.tone-red {
     background-color: #ef4444;
   }
@@ -2847,5 +2855,264 @@
     line-height: 1;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Nurse Station Page Styles
+   -------------------------------------------------------------------------- */
+.nurse-station-page,
+.housekeeping-portal-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.nurse-handoff-grid,
+.housekeeping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.nurse-card,
+.housekeeping-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.nurse-card:hover,
+.housekeeping-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+.nurse-card.is-pending {
+  border-left: 4px solid #2563eb;
+}
+
+.nurse-card.is-ready {
+  border-left: 4px solid #d97706;
+}
+
+.nurse-card.is-done {
+  border-left: 4px solid #16a34a;
+}
+
+.housekeeping-card.is-cleaning {
+  border-left: 4px solid #0284c7;
+}
+
+.housekeeping-card.is-anomaly {
+  border-left: 4px solid #dc2626;
+  background-color: #fffaf0;
+}
+
+.housekeeping-card.is-ready {
+  border-left: 4px solid #16a34a;
+}
+
+.nurse-card-header,
+.housekeeping-card-header {
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background-color: #f8fafc;
+}
+
+.nurse-card-ref,
+.housekeeping-ref {
+  display: block;
+  font-size: 0.68rem;
+  font-family: monospace;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.nurse-card-bed,
+.housekeeping-bed {
+  display: block;
+  font-size: 1.05rem;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.nurse-card-room,
+.housekeeping-room {
+  display: block;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.nurse-card-body,
+.housekeeping-card-body {
+  padding: 1rem 1.15rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.handoff-check-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.handoff-check-row.departure-step {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.departure-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.departure-info strong {
+  font-size: 0.78rem;
+  color: #15803d;
+}
+
+.departure-info span {
+  font-size: 0.68rem;
+  color: #166534;
+}
+
+.handoff-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.handoff-checkbox-label input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.handoff-checkbox-label strong {
+  display: block;
+  font-size: 0.78rem;
+  color: #0f172a;
+}
+
+.handoff-checkbox-label span {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.handoff-timestamp {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #15803d;
+  margin-left: 1.7rem;
+}
+
+.anomaly-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #991b1b;
+}
+
+.anomaly-warning-box p {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  color: #b91c1c;
+}
+
+.cleaning-protocol-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.protocol-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  color: #334155;
+}
+
+.cleaning-action-area {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.cleaning-actions-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bed-ready-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.nurse-card-footer,
+.housekeeping-card-footer {
+  padding: 0.65rem 1.15rem;
+  background-color: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.camera-feed-label {
+  font-size: 0.68rem;
+  font-family: monospace;
+  color: #0d9488;
+  font-weight: 600;
+}
+
+@media (max-width: 820px) {
+  .nurse-handoff-grid,
+  .housekeeping-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 

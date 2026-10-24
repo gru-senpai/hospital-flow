@@ -8,6 +8,8 @@ import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
 import { NotificationDrawer } from './components/layout/NotificationDrawer';
 
 import { OperationsDashboard } from './components/dashboard/OperationsDashboard';
+import { NurseStation } from './components/staff/NurseStation';
+import { HousekeepingPortal } from './components/staff/HousekeepingPortal';
 import { LabManagement } from './components/labs/LabManagement';
 import { EquipmentManagement } from './components/equipment/EquipmentManagement';
 import { ClinicBedManagement } from './components/beds/ClinicBedManagement';
@@ -32,6 +34,8 @@ function getInitialRoute(): AppRoute {
   const path = window.location.pathname.replace(/^\//, '').toLowerCase();
   const validRoutes: AppRoute[] = [
     'dashboard',
+    'nursing',
+    'housekeeping',
     'labs',
     'equipment',
     'beds',
@@ -141,6 +145,18 @@ const HospitalFlowCommandCenter: React.FC = () => {
           {currentRoute === 'dashboard' && (
             <OperationsDashboard
               onNavigate={navigateTo}
+              onOpenCreateCase={() => setIsCreateCaseOpen(true)}
+            />
+          )}
+
+          {currentRoute === 'nursing' && (
+            <NurseStation
+              onOpenCreateCase={() => setIsCreateCaseOpen(true)}
+            />
+          )}
+
+          {currentRoute === 'housekeeping' && (
+            <HousekeepingPortal
               onOpenCreateCase={() => setIsCreateCaseOpen(true)}
             />
           )}

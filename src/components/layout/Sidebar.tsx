@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  HeartHandshake,
+  Sparkles,
   FlaskConical,
   Wrench,
   Bed,
@@ -42,6 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const activeAlertCount = alerts.filter((a) => a.status !== 'RESOLVED').length;
   const pendingBedReviews = cases.filter((c) => c.status === 'AWAITING_REVIEW').length;
+  const pendingNursing = cases.filter((c) => !c.nursingComplete).length;
+  const activeCleaning = cases.filter((c) => c.status === 'CLEANING_IN_PROGRESS' || c.status === 'REJECTED_RECLEAN').length;
   const criticalDrugs = pharmacy.filter((p) => p.status === 'CRITICAL' || p.status === 'LOW_STOCK').length;
 
   const navItems = [
@@ -50,6 +54,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Dashboard',
       icon: LayoutDashboard,
       badge: undefined,
+    },
+    {
+      id: 'nursing' as AppRoute,
+      label: 'Nurse Station',
+      icon: HeartHandshake,
+      badge: pendingNursing > 0 ? `${pendingNursing}` : undefined,
+      badgeTone: 'blue',
+    },
+    {
+      id: 'housekeeping' as AppRoute,
+      label: 'Housekeeping',
+      icon: Sparkles,
+      badge: activeCleaning > 0 ? `${activeCleaning}` : undefined,
+      badgeTone: 'teal',
+    },
+    {
+      id: 'beds' as AppRoute,
+      label: 'Clinic Beds',
+      icon: Bed,
+      badge: pendingBedReviews > 0 ? `${pendingBedReviews}` : undefined,
+      badgeTone: 'amber',
     },
     {
       id: 'labs' as AppRoute,
@@ -62,13 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Equipment',
       icon: Wrench,
       badge: undefined,
-    },
-    {
-      id: 'beds' as AppRoute,
-      label: 'Clinic Beds',
-      icon: Bed,
-      badge: pendingBedReviews > 0 ? `${pendingBedReviews}` : undefined,
-      badgeTone: 'amber',
     },
     {
       id: 'camps' as AppRoute,

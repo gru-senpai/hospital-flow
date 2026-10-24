@@ -382,6 +382,8 @@ export interface OperationalAlert {
 // ==========================================
 export type AppRoute =
   | 'dashboard'
+  | 'nursing'
+  | 'housekeeping'
   | 'labs'
   | 'equipment'
   | 'beds'

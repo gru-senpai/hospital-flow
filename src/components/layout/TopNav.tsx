@@ -21,6 +21,8 @@ interface TopNavProps {
 
 const ROUTE_LABELS: Record<AppRoute, { title: string; breadcrumb: string }> = {
   dashboard: { title: 'Operations Dashboard', breadcrumb: 'Command Center / Global Overview' },
+  nursing: { title: 'Nurse Station & Clinical Handoffs', breadcrumb: 'Inpatient Care / Floor Nurse Terminal' },
+  housekeeping: { title: 'Housekeeping & Terminal Sanitisation', breadcrumb: 'Facility Operations / Room Sanitation Hub' },
   labs: { title: 'Lab Operations & Diagnostics', breadcrumb: 'Clinical Support / Laboratory Automation' },
   equipment: { title: 'Equipment & Asset Management', breadcrumb: 'Biomedical Engineering / Critical Assets' },
   beds: { title: 'Clinic Bed Coordination', breadcrumb: 'Inpatient Care / Room Readiness & Turnaround' },
@@ -47,7 +49,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   const currentInfo = ROUTE_LABELS[currentRoute] || { title: 'HospitalFlow', breadcrumb: 'Operations' };
 
   const formatFreshness = () => {
-    const diffSeconds = Math.floor((Date.now() - lastSyncTime.getTime()) / 1000);
+    const diffSeconds = Math.max(0, Math.floor((lastSyncTime ? Date.now() - lastSyncTime.getTime() : 0) / 1000));
     if (diffSeconds < 10) return 'Just now';
     if (diffSeconds < 60) return `${diffSeconds}s ago`;
     return `${Math.floor(diffSeconds / 60)}m ago`;

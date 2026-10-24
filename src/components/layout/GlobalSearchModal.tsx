@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Bed, Wrench, FlaskConical, Boxes, HeartPulse, UserCheck, BellRing, ArrowRight } from 'lucide-react';
+import { Search, X, Bed, Wrench, FlaskConical, Boxes, HeartPulse, UserCheck, BellRing, ArrowRight, HeartHandshake, Sparkles } from 'lucide-react';
 import { useOperations } from '../../context/OperationsContext';
 import { useHospitalFlow } from '../../context/HospitalFlowContext';
 import type { AppRoute } from '../../types';
@@ -23,10 +23,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setQuery('');
     }
   }, [isOpen]);
+
+  const handleClose = () => {
+    setQuery('');
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -61,12 +64,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     matchingAlerts.length;
 
   const handleSelect = (route: AppRoute) => {
+    setQuery('');
     onNavigate(route);
     onClose();
   };
 
   return (
-    <div className="search-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="search-modal-backdrop" onClick={handleClose} role="dialog" aria-modal="true">
       <div className="search-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="search-input-header">
           <Search className="search-icon" size={20} />
@@ -78,7 +82,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button type="button" className="search-close-btn" onClick={onClose} aria-label="Close search">
+          <button type="button" className="search-close-btn" onClick={handleClose} aria-label="Close search">
             <X size={18} />
           </button>
         </div>
@@ -88,17 +92,23 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             <div className="search-suggestions">
               <span className="search-section-label">Quick Module Navigation</span>
               <div className="search-chips-row">
+                <button type="button" className="search-chip" onClick={() => handleSelect('nursing')}>
+                  <HeartHandshake size={15} /> Nurse Station
+                </button>
+                <button type="button" className="search-chip" onClick={() => handleSelect('housekeeping')}>
+                  <Sparkles size={15} /> Housekeeping
+                </button>
                 <button type="button" className="search-chip" onClick={() => handleSelect('beds')}>
                   <Bed size={15} /> Clinic Beds
+                </button>
+                <button type="button" className="search-chip" onClick={() => handleSelect('trauma')}>
+                  <HeartPulse size={15} /> Emergency Trauma
                 </button>
                 <button type="button" className="search-chip" onClick={() => handleSelect('equipment')}>
                   <Wrench size={15} /> Equipment
                 </button>
                 <button type="button" className="search-chip" onClick={() => handleSelect('pharmacy')}>
                   <Boxes size={15} /> Pharmacy
-                </button>
-                <button type="button" className="search-chip" onClick={() => handleSelect('trauma')}>
-                  <HeartPulse size={15} /> Emergency Trauma
                 </button>
                 <button type="button" className="search-chip" onClick={() => handleSelect('labs')}>
                   <FlaskConical size={15} /> Labs

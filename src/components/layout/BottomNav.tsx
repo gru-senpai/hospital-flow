@@ -1,9 +1,9 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  HeartHandshake,
+  Sparkles,
   Bed,
-  HeartPulse,
-  FlaskConical,
   BellRing,
 } from 'lucide-react';
 import type { AppRoute } from '../../types';
@@ -23,14 +23,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const { cases } = useHospitalFlow();
 
   const activeAlertCount = alerts.filter((a) => a.status !== 'RESOLVED').length;
-  const readyBeds = cases.filter((c) => c.status === 'BED_READY').length;
+  const pendingNursing = cases.filter((c) => !c.nursingComplete).length;
+  const activeCleaning = cases.filter((c) => c.status === 'CLEANING_IN_PROGRESS' || c.status === 'REJECTED_RECLEAN').length;
 
   const items: Array<{
     id: AppRoute;
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
     badge?: number;
-    badgeTone?: 'green' | 'red';
+    badgeTone?: 'blue' | 'teal' | 'red';
   }> = [
     {
       id: 'dashboard',
@@ -38,21 +39,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       icon: LayoutDashboard,
     },
     {
+      id: 'nursing',
+      label: 'Nurses',
+      icon: HeartHandshake,
+      badge: pendingNursing > 0 ? pendingNursing : undefined,
+      badgeTone: 'blue',
+    },
+    {
+      id: 'housekeeping',
+      label: 'Cleaners',
+      icon: Sparkles,
+      badge: activeCleaning > 0 ? activeCleaning : undefined,
+      badgeTone: 'teal',
+    },
+    {
       id: 'beds',
       label: 'Beds',
       icon: Bed,
-      badge: readyBeds > 0 ? readyBeds : undefined,
-      badgeTone: 'green',
-    },
-    {
-      id: 'trauma',
-      label: 'Trauma',
-      icon: HeartPulse,
-    },
-    {
-      id: 'labs',
-      label: 'Labs',
-      icon: FlaskConical,
     },
     {
       id: 'alerts',
