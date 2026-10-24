@@ -21,6 +21,8 @@ interface TopNavProps {
 
 const ROUTE_LABELS: Record<AppRoute, { title: string; breadcrumb: string }> = {
   dashboard: { title: 'Operations Dashboard', breadcrumb: 'Command Center / Global Overview' },
+  nurse: { title: 'Nurse Panel', breadcrumb: 'Nursing Operations / Shift Overview' },
+  housekeeping: { title: 'Housekeeping Panel', breadcrumb: 'Facility Operations / Cleaning Queue' },
   labs: { title: 'Lab Operations & Diagnostics', breadcrumb: 'Clinical Support / Laboratory Automation' },
   equipment: { title: 'Equipment & Asset Management', breadcrumb: 'Biomedical Engineering / Critical Assets' },
   beds: { title: 'Clinic Bed Coordination', breadcrumb: 'Inpatient Care / Room Readiness & Turnaround' },
@@ -55,22 +57,15 @@ export const TopNav: React.FC<TopNavProps> = ({
 
   return (
     <header className="app-topnav">
-      {/* Mobile Menu & Brand */}
-      <div className="mobile-header-brand">
-        <button
-          type="button"
-          className="mobile-menu-trigger"
-          onClick={onToggleMobileMenu}
-          aria-label="Toggle navigation menu"
-        >
-          <Menu size={20} />
-        </button>
-        <img
-          src="/hospitalflow-logo.jpg"
-          alt="HospitalFlow"
-          className="mobile-brand-logo"
-        />
-      </div>
+      {/* Mobile Menu Button */}
+      <button
+        type="button"
+        className="mobile-menu-trigger"
+        onClick={onToggleMobileMenu}
+        aria-label="Toggle navigation menu"
+      >
+        <Menu size={20} />
+      </button>
 
       {/* Breadcrumb & Contextual Title */}
       <div className="topnav-titles">
