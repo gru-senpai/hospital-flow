@@ -55,7 +55,9 @@ export function loadCases(): HospitalCase[] {
 
 export function saveCases(cases: HospitalCase[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY_CASES, JSON.stringify(cases));
+    const serialized = JSON.stringify(cases);
+    if (localStorage.getItem(STORAGE_KEY_CASES) === serialized) return;
+    localStorage.setItem(STORAGE_KEY_CASES, serialized);
   } catch (err) {
     console.error('[HospitalFlow] Failed to write cases to localStorage', err);
   }
