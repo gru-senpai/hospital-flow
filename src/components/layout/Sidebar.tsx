@@ -7,6 +7,7 @@ import {
   Stethoscope,
   Boxes,
   HeartPulse,
+  Sparkles,
   CalendarClock,
   Users,
   BellRing,
@@ -15,13 +16,18 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import type { AppRoute } from '../../types';
 import { useOperations } from '../../context/OperationsContext';
 import { useHospitalFlow } from '../../context/HospitalFlowContext';
 
+type DemoRole = 'coordinator' | 'nurse' | 'housekeeping';
+
 interface SidebarProps {
   currentRoute: AppRoute;
+  demoRole: DemoRole;
+  onDemoRoleChange: (role: DemoRole) => void;
   onNavigate: (route: AppRoute) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -31,6 +37,8 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentRoute,
+  demoRole,
+  onDemoRoleChange,
   onNavigate,
   collapsed,
   onToggleCollapse,
@@ -51,6 +59,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: LayoutDashboard,
       badge: undefined,
     },
+    { id: 'nurse' as AppRoute, label: 'Nurse Panel', icon: HeartPulse, badge: undefined },
+    { id: 'housekeeping' as AppRoute, label: 'Housekeeping', icon: Sparkles, badge: undefined },
     {
       id: 'labs' as AppRoute,
       label: 'Labs',
@@ -120,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Settings,
       badge: undefined,
     },
-  ];
+  ].filter((item) => demoRole === 'coordinator' || item.id === (demoRole === 'nurse' ? 'nurse' : 'housekeeping'));
 
   return (
     <>
@@ -134,18 +144,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'is-mobile-open' : ''}`}>
       {/* Brand & Wordmark */}
       <div className="sidebar-brand-box">
-        <div className="brand-icon-wrap" aria-hidden="true" title="HospitalFlow Operations">
-          <img
-            src="/hospitalflow-logo.jpg"
-            alt="HospitalFlow Logo"
-            className="brand-logo-img"
-          />
+        <div className="brand-icon-wrap" aria-hidden="true">
+          <Building2 className="brand-logo-icon" size={22} />
           <span className="live-status-dot" title="Operations Network Online" />
         </div>
         {!collapsed && (
           <div className="brand-info">
             <span className="brand-name">HospitalFlow</span>
-            <span className="brand-subtitle">Connect • Coordinate • Care</span>
+            <span className="brand-subtitle">Command Center v2.4</span>
           </div>
         )}
         <button
@@ -200,8 +206,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="operator-card">
             <div className="operator-avatar">PS</div>
             <div className="operator-details">
-              <span className="operator-name">Dr. Priya Sharma</span>
-              <span className="operator-role">Operations Coordinator</span>
+              <span className="operator-name">{demoRole === 'coordinator' ? 'Dr. Priya Sharma' : demoRole === 'nurse' ? 'Nurse Demo Operator' : 'Housekeeping Demo Operator'}</span>
+              <label className="operator-role demo-role-label">Demo role (local only)<select value={demoRole} onChange={(event) => onDemoRoleChange(event.target.value as DemoRole)} aria-label="Switch local demo role"><option value="coordinator">Coordinator</option><option value="nurse">Nurse</option><option value="housekeeping">Housekeeping</option></select></label>
               <div className="duty-status-indicator">
                 <span className="duty-dot" />
                 <span>On Duty • Shift A</span>
@@ -209,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         ) : (
-          <div className="operator-avatar-compact" title="Dr. Priya Sharma (On Duty)">
+          <div className="operator-avatar-compact" title={demoRole + " demo operator"}>
             PS
           </div>
         )}
