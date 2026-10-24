@@ -58,7 +58,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   return (
     <header className="app-topnav">
       {/* Mobile Menu & Brand */}
-      <div className="mobile-header-brand">
+      <div className="mobile-header-brand mobile-only">
         <button
           type="button"
           className="mobile-menu-trigger"
@@ -75,9 +75,9 @@ export const TopNav: React.FC<TopNavProps> = ({
       </div>
 
       {/* Breadcrumb & Contextual Title */}
-      <div className="topnav-titles">
-        <span className="topnav-breadcrumb">{currentInfo.breadcrumb}</span>
-        <h1 className="topnav-heading">{currentInfo.title}</h1>
+      <div className="topnav-titles" title={`${currentInfo.breadcrumb} • ${currentInfo.title}`}>
+        <span className="topnav-breadcrumb" title={currentInfo.breadcrumb}>{currentInfo.breadcrumb}</span>
+        <h1 className="topnav-heading" title={currentInfo.title}>{currentInfo.title}</h1>
       </div>
 
       {/* Global Search Bar (Full on Desktop, Compact on Mobile) */}
@@ -115,12 +115,15 @@ export const TopNav: React.FC<TopNavProps> = ({
           title="Click to force data sync across operational stations"
         >
           <span className="sync-live-dot" />
-          <span className="sync-text desktop-only">Live Sync • {formatFreshness()}</span>
+          <span className="sync-text desktop-only">
+            <span className="sync-text-full">Live Sync • {formatFreshness()}</span>
+            <span className="sync-text-compact">Live</span>
+          </span>
           <RefreshCw size={13} className="sync-refresh-icon" />
         </button>
 
         {/* Facility Selector */}
-        <div className="facility-selector-badge desktop-only" title="Active facility network">
+        <div className="facility-selector-badge desktop-only" title="Active facility network: Apollo Central Hospital">
           <Building size={14} className="facility-icon" />
           <span className="facility-name">Apollo Central Hospital</span>
         </div>
