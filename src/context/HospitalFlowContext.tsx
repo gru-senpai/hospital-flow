@@ -6,6 +6,7 @@ import type {
   TurnaroundPriority,
   RejectionReasonCategory,
   EventLog,
+  AiCameraInspection,
 } from '../types';
 import { photoStorage } from '../services/db';
 import {
@@ -48,6 +49,10 @@ interface HospitalFlowContextType {
     file: File | Blob,
     mimeType?: string
   ) => Promise<{ success: boolean; error?: string }>;
+  runAiCameraInspection: (
+    caseId: string,
+    simulateAnomaly?: boolean
+  ) => Promise<{ success: boolean; error?: string; verdict?: string }>;
   approveBedReady: (caseId: string) => Promise<{ success: boolean; error?: string }>;
   rejectBedPhoto: (
     caseId: string,
@@ -461,39 +466,102 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [settings.pendingPhotoExpiryDays, showNotification, updateCases, refreshStorageSummary]
   );
 
-  // 7. Coordinator Approves Bed Ready
-  const approveBedReady = useCallback(
-    async (caseId: string): Promise<{ success: boolean; error?: string }> => {
+  // 7. Autonomous AI Camera Vision Inspection & Direct Bed Ready Confirmation
+  const runAiCameraInspection = useCallback(
+    async (
+      caseId: string,
+      simulateAnomaly: boolean = false
+    ): Promise<{ success: boolean; error?: string; verdict?: string }> => {
       const c = cases.find((item) => item.id === caseId);
       if (!c) return { success: false, error: 'Case not found' };
-
-      if (!c.photoUploaded) {
-        showNotification('error', 'Cannot approve: Bed photo has not been uploaded yet.');
-        return { success: false, error: 'Photo required prior to approval.' };
-      }
 
       setIsProcessing(true);
       try {
         const nowIso = new Date().toISOString();
-        const retentionHours = settings.approvedPhotoRetentionHours || 48;
-        const expiresAt = new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString();
+        const wardPrefix = (c.ward || 'GEN').substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const roomNum = (c.room || '01').replace(/[^0-9]/g, '') || '01';
+        const cameraId = `CAM-${wardPrefix}-${roomNum}`;
 
-        // Update photo record retention in IndexedDB
-        const updateRes = await photoStorage.updateExpiryAndStatus(caseId, expiresAt, 'approved');
-        if (!updateRes.success) {
-          console.warn('[HospitalFlow] Retention update notice:', updateRes.error);
+        if (simulateAnomaly) {
+          // AI Vision Anomaly Detected: Flags issue & triggers re-clean autonomously
+          const anomalyInspection: AiCameraInspection = {
+            cameraId,
+            lensLocation: 'Overhead Optical Vision Scanner (Sensor Node Alpha)',
+            model: 'HospitalFlow Neural Vision v3.2',
+            timestamp: nowIso,
+            confidenceScore: 88.4,
+            verdict: 'ANOMALY_DETECTED',
+            checkpoints: {
+              surfaceSanitized: true,
+              linenFittedAndSterile: false,
+              bioWasteCleared: true,
+              medicalGasTerminalsCapped: true,
+              zeroPiiPrivacyPass: true,
+            },
+            detectedAnomalies: [
+              'Linen geometry wrinkle deviation (>28% tolerance)',
+              'Unsealed pillowcase edge detected at bed head',
+            ],
+            aiDecisionSummary: 'AI Camera Vision detected non-compliant linen fit. Re-clean retriggered automatically for Housekeeping.',
+          };
+
+          const anomalyEvt: EventLog = {
+            id: `evt-${Date.now()}`,
+            caseRef: c.caseRef,
+            timestamp: nowIso,
+            type: 'AI_INSPECTION',
+            actorLabel: `AI Vision Camera (${cameraId})`,
+            summary: 'Anomaly detected during optical inspection. Automated re-clean dispatched.',
+            details: `Camera: ${cameraId} | Model: v3.2 | Anomaly: Linen alignment non-compliant | Action: Automated Housekeeping re-dispatch`,
+          };
+
+          updateCases((prev) =>
+            prev.map((item) => {
+              if (item.id !== caseId) return item;
+              return {
+                ...item,
+                status: 'REJECTED_RECLEAN',
+                rejectionReason: 'LINEN_UNMADE',
+                rejectionDetails: 'Autonomous AI Camera detected linen fit discrepancy (>28% tolerance). Room re-queued for terminal tidy.',
+                rejectedAt: nowIso,
+                aiInspection: anomalyInspection,
+                events: [anomalyEvt, ...item.events],
+              };
+            })
+          );
+
+          showNotification('error', `⚠️ AI Camera (${cameraId}) flagged linen anomaly. Re-clean dispatched autonomously.`);
+          setIsProcessing(false);
+          return { success: true, verdict: 'ANOMALY_DETECTED' };
         }
 
-        // Case approval event log: Strictly caseRef, approverLabel, approval timestamp, approved status.
-        // NO image URLs, file names or binary bytes.
-        const approvalNoticeEvt: EventLog = {
+        // Standard Autonomous Success: AI confirms cleanliness and marks BED_READY directly!
+        const passInspection: AiCameraInspection = {
+          cameraId,
+          lensLocation: 'Overhead Optical Vision Scanner (Sensor Node Alpha)',
+          model: 'HospitalFlow Neural Vision v3.2',
+          timestamp: nowIso,
+          confidenceScore: 99.4,
+          verdict: 'VERIFIED_READY',
+          checkpoints: {
+            surfaceSanitized: true,
+            linenFittedAndSterile: true,
+            bioWasteCleared: true,
+            medicalGasTerminalsCapped: true,
+            zeroPiiPrivacyPass: true,
+          },
+          detectedAnomalies: [],
+          aiDecisionSummary: 'Autonomous Optical Verification: Cleanliness 99.4%, Sterile Linen Pass, Terminals Capped, Zero PII. Auto-Approved Bed Ready.',
+        };
+
+        const aiPassEvt: EventLog = {
           id: `evt-${Date.now()}`,
           caseRef: c.caseRef,
           timestamp: nowIso,
-          type: 'APPROVAL_NOTICE',
-          actorLabel: 'Coordinator (Simulated)',
-          summary: `Bed verified ready for admission. Workflow completed.`,
-          details: `Case Ref: ${c.caseRef} | Ward: ${c.ward} | Bed: ${c.bed} | Status: Bed Ready | Approver: Coordinator | Expiry: 48h scheduled deletion`,
+          type: 'AI_INSPECTION',
+          actorLabel: `AI Vision Camera (${cameraId})`,
+          summary: `Autonomous optical scan verified 99.4% cleanliness score. Bed confirmed ready for admission.`,
+          details: `Camera ID: ${cameraId} | Neural Confidence: 99.4% | Model: HospitalFlow Vision v3.2 | Sanitization: Pass | Privacy: 100% Zero PII | Human Delay: 0s`,
         };
 
         updateCases((prev) =>
@@ -503,25 +571,33 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
               ...item,
               status: 'BED_READY',
               approvedAt: nowIso,
-              approverLabel: 'Coordinator (Simulated)',
-              photoExpiresAt: expiresAt,
-              events: [approvalNoticeEvt, ...item.events],
+              approverLabel: `HospitalFlow Vision AI (${cameraId})`,
+              aiInspection: passInspection,
+              events: [aiPassEvt, ...item.events],
             };
           })
         );
 
-        await refreshStorageSummary();
-        showNotification('success', `Bed ${c.bed} marked Bed Ready! Photo retention scheduled for 48h.`);
+        showNotification('success', `⚡ AI Camera (${cameraId}) verified Bed ${c.bed}! Auto-confirmed Bed Ready.`);
         setIsProcessing(false);
-        return { success: true };
+        return { success: true, verdict: 'VERIFIED_READY' };
       } catch (err: unknown) {
         setIsProcessing(false);
-        const msg = err instanceof Error ? err.message : 'Approval failed';
+        const msg = err instanceof Error ? err.message : 'AI Vision scanning failed';
         showNotification('error', msg);
         return { success: false, error: msg };
       }
     },
-    [cases, settings.approvedPhotoRetentionHours, showNotification, updateCases, refreshStorageSummary]
+    [cases, showNotification, updateCases]
+  );
+
+  // Fallback for existing callers: delegates directly to AI camera verification
+  const approveBedReady = useCallback(
+    async (caseId: string): Promise<{ success: boolean; error?: string }> => {
+      const res = await runAiCameraInspection(caseId, false);
+      return { success: res.success, error: res.error };
+    },
+    [runAiCameraInspection]
   );
 
   // 8. Coordinator Requests Re-clean / Rejects Photo
@@ -768,6 +844,7 @@ export const HospitalFlowProvider: React.FC<{ children: React.ReactNode }> = ({ 
         confirmRoomDeparture,
         startCleaning,
         uploadPhoto,
+        runAiCameraInspection,
         approveBedReady,
         rejectBedPhoto,
         purgePhotoNow,

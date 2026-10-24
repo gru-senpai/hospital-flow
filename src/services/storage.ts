@@ -71,7 +71,6 @@ export function getInitialSyntheticCases(): HospitalCase[] {
   // Case 1: Awaiting Coordinator Approval
   const case1Created = new Date(now.getTime() - 45 * 60 * 1000).toISOString();
   const case1Uploaded = new Date(now.getTime() - 12 * 60 * 1000).toISOString();
-  const case1Expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const case1Events: EventLog[] = [
     {
@@ -109,19 +108,10 @@ export function getInitialSyntheticCases(): HospitalCase[] {
     {
       id: 'evt-105',
       caseRef: 'HF-2490',
-      timestamp: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
+      timestamp: case1Uploaded,
       type: 'CLEANING_STARTED',
       actorLabel: 'Housekeeping',
-      summary: 'Deep sanitisation and terminal linen replacement initiated',
-    },
-    {
-      id: 'evt-106',
-      caseRef: 'HF-2490',
-      timestamp: case1Uploaded,
-      type: 'PHOTO_UPLOADED',
-      actorLabel: 'Housekeeping',
-      summary: 'Sanitised bed verification photo submitted. Case awaiting coordinator review',
-      // CRITICAL: Strictly no photo URLs, file names or bytes
+      summary: 'Terminal sanitisation in progress. AI Optical Camera (CAM-W4B-02) initialized for auto-verification.',
     },
   ];
 
@@ -133,7 +123,7 @@ export function getInitialSyntheticCases(): HospitalCase[] {
     bed: 'Bed 1',
     bedType: 'Motorised Fowler Bed',
     priority: 'HIGH_TURNOVER',
-    status: 'AWAITING_REVIEW',
+    status: 'CLEANING_IN_PROGRESS',
     createdAt: case1Created,
     nursingComplete: true,
     nursingCompletedAt: new Date(now.getTime() - 40 * 60 * 1000).toISOString(),
@@ -142,10 +132,8 @@ export function getInitialSyntheticCases(): HospitalCase[] {
     departureConfirmed: true,
     departureConfirmedAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
     cleaningStarted: true,
-    cleaningStartedAt: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
-    photoUploaded: true,
-    photoUploadedAt: case1Uploaded,
-    photoExpiresAt: case1Expires,
+    cleaningStartedAt: case1Uploaded,
+    photoUploaded: false,
     photoPurged: false,
     events: case1Events,
   };
@@ -214,21 +202,13 @@ export function getInitialSyntheticCases(): HospitalCase[] {
       summary: 'Physical room departure confirmed',
     },
     {
-      id: 'evt-303',
-      caseRef: 'HF-9315',
-      timestamp: new Date(now.getTime() - 6.5 * 60 * 60 * 1000).toISOString(),
-      type: 'PHOTO_UPLOADED',
-      actorLabel: 'Housekeeping',
-      summary: 'Bed ready image uploaded for coordinator inspection',
-    },
-    {
       id: 'evt-304',
       caseRef: 'HF-9315',
       timestamp: case3Approved,
-      type: 'APPROVAL_NOTICE',
-      actorLabel: 'Coordinator (Simulated)',
-      summary: 'Bed readiness approved. Workflow closed. Image retention set to 48 hours.',
-      details: 'Case Ref: HF-9315 | Status: Bed Ready | Approver: Coordinator',
+      type: 'AI_INSPECTION',
+      actorLabel: 'AI Vision Camera (CAM-W1-05)',
+      summary: 'Autonomous optical inspection verified 99.4% sanitary score. Bed confirmed ready for admission.',
+      details: 'Camera: CAM-W1-05 | Neural Vision v3.2 | Sanitized: Pass | Linens: Pass | Gas: Capped | Zero PII: 100% | Human Lag: 0s',
     },
   ];
 
@@ -255,7 +235,24 @@ export function getInitialSyntheticCases(): HospitalCase[] {
     photoExpiresAt: case3PhotoExpiry,
     photoPurged: false,
     approvedAt: case3Approved,
-    approverLabel: 'Coordinator (Simulated)',
+    approverLabel: 'HospitalFlow Vision AI (CAM-W1-05)',
+    aiInspection: {
+      cameraId: 'CAM-W1-05',
+      lensLocation: 'Overhead Optical Vision Scanner (Sensor Node Alpha)',
+      model: 'HospitalFlow Neural Vision v3.2',
+      timestamp: case3Approved,
+      confidenceScore: 99.4,
+      verdict: 'VERIFIED_READY',
+      checkpoints: {
+        surfaceSanitized: true,
+        linenFittedAndSterile: true,
+        bioWasteCleared: true,
+        medicalGasTerminalsCapped: true,
+        zeroPiiPrivacyPass: true,
+      },
+      detectedAnomalies: [],
+      aiDecisionSummary: 'Autonomous Optical Verification: Cleanliness 99.4%, Sterile Linen Pass, Terminals Capped, Zero PII. Auto-Approved Bed Ready.',
+    },
     events: case3Events,
   };
 

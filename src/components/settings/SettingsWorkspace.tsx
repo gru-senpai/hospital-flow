@@ -23,14 +23,12 @@ export const SettingsWorkspace: React.FC = () => {
   const [campCapacityThreshold, setCampCapacityThreshold] = useState(80);
   const [pharmacyBufferRatio, setPharmacyBufferRatio] = useState(50);
   const [billingRequired, setBillingRequired] = useState(!settings.billingOptional);
-  const [photoRetentionHours, setPhotoRetentionHours] = useState(settings.approvedPhotoRetentionHours);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   const handleSaveRules = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettings({
       billingOptional: !billingRequired,
-      approvedPhotoRetentionHours: photoRetentionHours,
     });
     triggerSync();
     setSaveNotice('Operational workflow rules and safety policies updated successfully.');
@@ -132,43 +130,58 @@ export const SettingsWorkspace: React.FC = () => {
               </label>
             </div>
 
+            <div className="setting-toggle-card">
+              <div className="toggle-info">
+                <strong>Autonomous AI Camera Auto-Confirmation Mode</strong>
+                <p>
+                  When enabled, overhead AI cameras automatically inspect bed sanitisation, linens, and waste clearance upon room cleaning completion, confirming <strong>Bed Ready without requiring human coordinator approval</strong>.
+                </p>
+              </div>
+              <label className="switch-label">
+                <input
+                  type="checkbox"
+                  checked={true}
+                  disabled
+                />
+                <span className="switch-slider is-active" />
+              </label>
+            </div>
+
             <div className="setting-field-card">
               <div className="field-info">
-                <strong>Verified Photo Retention Window (Hours)</strong>
+                <strong>AI Vision Minimum Cleanliness Confidence Threshold (%)</strong>
                 <p>
-                  Time in hours after Coordinator approval before the bed inspection photo blob is
-                  permanently deleted from client storage.
+                  Rooms meeting or exceeding this neural optical score are instantaneously confirmed for inpatient admission without human intervention.
                 </p>
               </div>
               <div className="field-input-box">
                 <input
                   type="number"
-                  min={1}
-                  max={168}
-                  value={photoRetentionHours}
-                  onChange={(e) => setPhotoRetentionHours(Number(e.target.value))}
+                  min={85}
+                  max={99}
+                  defaultValue={95}
                   className="form-control w-32"
                 />
-                <span className="unit-label">Hours (Default 48h)</span>
+                <span className="unit-label">% Confidence (Safety Target &gt;95%)</span>
               </div>
             </div>
 
             <div className="setting-field-card">
               <div className="field-info">
-                <strong>Pending Inspection Expiry Window</strong>
+                <strong>Strict Zero PII Optical Privacy Gate</strong>
                 <p>
-                  Unreviewed photos awaiting coordinator approval expire automatically after 7 calendar days.
+                  Overhead AI camera feeds enforce edge-level privacy checks. If any person or identifiable clinical document is in view, the scan is blocked immediately.
                 </p>
               </div>
               <div className="field-input-box">
-                <span className="font-semibold text-navy">7 Days (Fixed Safety Policy)</span>
+                <span className="font-semibold text-teal">100% Neural Privacy Gate Enabled</span>
               </div>
             </div>
 
             <div className="form-submit-row">
               <button type="submit" className="btn btn-primary">
                 <Save size={16} />
-                <span>Save Workflow Rules</span>
+                <span>Save AI Camera Workflow Rules</span>
               </button>
             </div>
           </form>

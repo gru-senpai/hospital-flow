@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import {
   Bed,
-  Sparkles,
   ClipboardCheck,
-  AlertTriangle,
   ArrowLeft,
-  X,
   Filter,
 } from 'lucide-react';
 import { StatusBadge } from '../common/StatusBadge';
@@ -24,33 +21,13 @@ export const ClinicBedManagement: React.FC<ClinicBedManagementProps> = ({
     cases,
     activeCase,
     setActiveCaseId,
-    approveBedReady,
-    rejectBedPhoto,
+    runAiCameraInspection,
     isProcessing,
   } = useHospitalFlow();
 
   const [viewMode, setViewMode] = useState<'turnaround' | 'ward_grid'>('turnaround');
   const [selectedWard, setSelectedWard] = useState<string>('ALL');
   const [mobileDetailView, setMobileDetailView] = useState<'queue' | 'detail'>('queue');
-
-  // Housekeeping Checklist Modal State
-  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
-  const [checklistCaseId, setChecklistCaseId] = useState<string>('');
-  const [checklist, setChecklist] = useState({
-    linenRemoved: false,
-    surfaceDisinfected: false,
-    bedRailsSanitized: false,
-    wasteDisposed: false,
-    suctionOxygenTested: false,
-    finalInspectionApproved: false,
-  });
-  const [checklistError, setChecklistError] = useState<string | null>(null);
-
-  // Rejection Modal State
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [rejectCaseId, setRejectCaseId] = useState<string>('');
-  const [rejectReason, setRejectReason] = useState<string>('SURFACE_UNCLEAN');
-  const [rejectDetails, setRejectDetails] = useState<string>('Mattress undersurface requires re-disinfection');
 
   const wards = ['ALL', 'Ward 4B (Stepdown)', 'Ward 1 (Day Care)', 'ICU Ward 5A', 'Trauma Bay'];
 
@@ -62,50 +39,6 @@ export const ClinicBedManagement: React.FC<ClinicBedManagementProps> = ({
   const handleSelectCase = (id: string) => {
     setActiveCaseId(id);
     setMobileDetailView('detail');
-  };
-
-  const handleOpenChecklist = (caseId: string) => {
-    setChecklistCaseId(caseId);
-    setChecklist({
-      linenRemoved: true,
-      surfaceDisinfected: true,
-      bedRailsSanitized: true,
-      wasteDisposed: true,
-      suctionOxygenTested: true,
-      finalInspectionApproved: false,
-    });
-    setChecklistError(null);
-    setIsChecklistModalOpen(true);
-  };
-
-  const handleCompleteChecklist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!checklist.linenRemoved || !checklist.surfaceDisinfected || !checklist.bedRailsSanitized || !checklist.wasteDisposed || !checklist.finalInspectionApproved) {
-      setChecklistError('All core sanitization checks must be verified before submitting bed for verification.');
-      return;
-    }
-
-    // Advance case to AWAITING_REVIEW via photo or simulation
-    const targetCase = cases.find((c) => c.id === checklistCaseId);
-    if (targetCase && targetCase.status === 'CLEANING_IN_PROGRESS') {
-      // Complete checklist transition
-      setIsChecklistModalOpen(false);
-    }
-  };
-
-  const handleOpenReject = (caseId: string) => {
-    setRejectCaseId(caseId);
-    setIsRejectModalOpen(true);
-  };
-
-  const handleConfirmReject = async () => {
-    if (!rejectCaseId) return;
-    await rejectBedPhoto(rejectCaseId, rejectReason as any, rejectDetails);
-    setIsRejectModalOpen(false);
-  };
-
-  const handleApprove = async (caseId: string) => {
-    await approveBedReady(caseId);
   };
 
   return (
@@ -221,9 +154,9 @@ export const ClinicBedManagement: React.FC<ClinicBedManagementProps> = ({
                 </p>
               </div>
               <div className="legend-pills-row">
-                <StatusBadge label="Bed Ready" tone="green" size="sm" />
-                <StatusBadge label="Cleaning" tone="blue" size="sm" />
-                <StatusBadge label="Awaiting Review" tone="amber" size="sm" />
+                <StatusBadge label="AI Confirmed Ready" tone="green" size="sm" />
+                <StatusBadge label="Sanitizing" tone="blue" size="sm" />
+                <StatusBadge label="AI Scan Queue" tone="amber" size="sm" />
                 <StatusBadge label="Departure Pending" tone="slate" size="sm" />
               </div>
             </div>
@@ -241,7 +174,13 @@ export const ClinicBedManagement: React.FC<ClinicBedManagementProps> = ({
                   <div className="ward-tile-top">
                     <span className="ward-tile-id">{c.caseRef}</span>
                     <StatusBadge
-                      label={c.status === 'BED_READY' ? 'READY' : c.status.replace(/_/g, ' ')}
+                      label={
+                        c.status === 'BED_READY'
+                          ? 'AI READY'
+                          : c.status === 'AWAITING_REVIEW'
+                          ? 'AI SCANNING'
+                          : c.status.replace(/_/g, ' ')
+                      }
                       tone={
                         c.status === 'BED_READY'
                           ? 'green'
@@ -270,243 +209,58 @@ export const ClinicBedManagement: React.FC<ClinicBedManagementProps> = ({
                         <span className="tile-action-hint text-blue">Sanitizing</span>
                         <button
                           type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '11px' }}
-                          onClick={(e) => {
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '2px 8px', fontSize: '11px', background: '#0284c7' }}
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            handleOpenChecklist(c.id);
+                            await runAiCameraInspection(c.id);
                           }}
+                          disabled={isProcessing}
                         >
-                          Checklist
+                          ⚡ AI Camera Scan
                         </button>
                       </div>
                     )}
                     {c.status === 'AWAITING_REVIEW' && (
-                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span className="tile-action-hint text-amber">Camera Ready</span>
                         <button
                           type="button"
                           className="btn btn-primary btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '11px' }}
-                          onClick={(e) => {
+                          style={{ padding: '2px 8px', fontSize: '11px', background: '#0284c7' }}
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            handleApprove(c.id);
+                            await runAiCameraInspection(c.id);
                           }}
+                          disabled={isProcessing}
                         >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '11px' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenReject(c.id);
-                          }}
-                        >
-                          Reject
+                          ⚡ Auto-Confirm
                         </button>
                       </div>
                     )}
                     {c.status === 'BED_READY' && (
-                      <span className="tile-action-hint text-green">✓ Allocated & Ready</span>
+                      <span className="tile-action-hint text-green">✓ Confirmed Ready by AI Vision</span>
+                    )}
+                    {c.status === 'REJECTED_RECLEAN' && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span className="tile-action-hint text-red">AI Anomaly</span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '2px 8px', fontSize: '11px' }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await runAiCameraInspection(c.id);
+                          }}
+                          disabled={isProcessing}
+                        >
+                          Re-scan
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Housekeeping Checklist Verification Modal */}
-      {isChecklistModalOpen && (
-        <div className="search-modal-backdrop" onClick={() => setIsChecklistModalOpen(false)}>
-          <div className="booking-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-wrap">
-                <Sparkles size={20} className="text-teal" />
-                <h3>7-Step Housekeeping Sanitization Checklist</h3>
-              </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setIsChecklistModalOpen(false)}
-                aria-label="Close modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCompleteChecklist} className="modal-form">
-              <p className="form-hint">
-                Standard Operational Protocol: Each step must be completed by authorized staff before the bed can enter the Coordinator Verification Queue.
-              </p>
-
-              <div className="checklist-items-stack">
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.linenRemoved}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, linenRemoved: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>1. Soiled Linen & Pillow Removal</strong>
-                    <span>Bagged in designated infectious / non-infectious laundry containers</span>
-                  </div>
-                </label>
-
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.surfaceDisinfected}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, surfaceDisinfected: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>2. Complete Mattress & Frame Disinfection</strong>
-                    <span>High-level hospital-grade quaternary ammonium solution applied</span>
-                  </div>
-                </label>
-
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.bedRailsSanitized}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, bedRailsSanitized: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>3. Side Rails & Touchpoints Sanitized</strong>
-                    <span>Brakes, electronic hand pendants, IV poles, and overbed table</span>
-                  </div>
-                </label>
-
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.wasteDisposed}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, wasteDisposed: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>4. Waste Disposal & Floor Mopping</strong>
-                    <span>Bins lined with fresh bio-medical waste bags per color code</span>
-                  </div>
-                </label>
-
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.suctionOxygenTested}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, suctionOxygenTested: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>5. Wall Suction & Oxygen Outlets Check</strong>
-                    <span>Flow verified, terminal connectors capped</span>
-                  </div>
-                </label>
-
-                <label className="checklist-row">
-                  <input
-                    type="checkbox"
-                    checked={checklist.finalInspectionApproved}
-                    onChange={(e) => setChecklist((prev) => ({ ...prev, finalInspectionApproved: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>6. Final Housekeeping Supervisor Sign-off</strong>
-                    <span>Room is odor-free, dry, and ready for floor coordinator review</span>
-                  </div>
-                </label>
-              </div>
-
-              {checklistError && (
-                <div className="inline-alert alert-error" role="alert">
-                  <AlertTriangle size={18} />
-                  <span>{checklistError}</span>
-                </div>
-              )}
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsChecklistModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Submit for Coordinator Approval
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Rejection / Re-clean Modal */}
-      {isRejectModalOpen && (
-        <div className="search-modal-backdrop" onClick={() => setIsRejectModalOpen(false)}>
-          <div className="booking-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-wrap">
-                <AlertTriangle size={20} className="text-red" />
-                <h3>Reject Room Readiness & Request Re-clean</h3>
-              </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setIsRejectModalOpen(false)}
-                aria-label="Close modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-form">
-              <p className="form-hint">
-                Rejecting readiness sends this bed back to <strong>Housekeeping Cleaning</strong> status. An audit notice will be logged.
-              </p>
-
-              <div className="form-group">
-                <label className="form-label">Deficiency Category</label>
-                <select
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  className="form-control"
-                >
-                  <option value="SURFACE_UNCLEAN">Surface Unclean or Stained</option>
-                  <option value="LINEN_UNMADE">Linen Improperly Made or Wrinkled</option>
-                  <option value="TRASH_REMAINS">Trash or Biological Debris Remaining</option>
-                  <option value="BLURRY_OR_IMPROPER_ANGLE">Verification Photo Blurry / Non-compliant</option>
-                  <option value="OTHER_OPERATIONAL">Other Operational Discrepancy</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Corrective Action Notes for Crew</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={rejectDetails}
-                  onChange={(e) => setRejectDetails(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsRejectModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={handleConfirmReject}
-                  disabled={isProcessing}
-                >
-                  Confirm Rejection & Re-clean
-                </button>
-              </div>
             </div>
           </div>
         </div>

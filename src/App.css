@@ -2142,3 +2142,326 @@
     display: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+   AI Smart Camera Vision Hub & Optical HUD Styles
+   -------------------------------------------------------------------------- */
+.ai-camera-active-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(20, 184, 166, 0.08) 100%);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.ai-camera-pulse-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.3);
+}
+
+.ai-camera-banner-info strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #0f172a;
+  margin-bottom: 0.2rem;
+}
+
+.ai-camera-banner-info p {
+  font-size: 0.75rem;
+  color: #475569;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ai-feed-tag {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.ai-neural-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: #0c1427;
+  color: #38bdf8;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid #1e293b;
+}
+
+.ai-neural-status-pill .live-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #10b981;
+  animation: pulse-dot 1.5s infinite;
+}
+
+/* AI Camera Viewport */
+.ai-camera-viewport {
+  margin-bottom: 1rem;
+}
+
+.ai-hud-frame {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  background-color: #090d16;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+/* HUD Corner Brackets */
+.hud-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: #38bdf8;
+  border-style: solid;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hud-corner.top-left {
+  top: 10px;
+  left: 10px;
+  border-width: 2px 0 0 2px;
+}
+
+.hud-corner.top-right {
+  top: 10px;
+  right: 10px;
+  border-width: 2px 2px 0 0;
+}
+
+.hud-corner.bottom-left {
+  bottom: 10px;
+  left: 10px;
+  border-width: 0 0 2px 2px;
+}
+
+.hud-corner.bottom-right {
+  bottom: 10px;
+  right: 10px;
+  border-width: 0 2px 2px 0;
+}
+
+/* Telemetry Header */
+.hud-telemetry-top {
+  position: absolute;
+  top: 12px;
+  left: 32px;
+  right: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 6;
+}
+
+.telemetry-badge {
+  background: rgba(12, 20, 39, 0.75);
+  backdrop-filter: blur(4px);
+  color: #94a3b8;
+  font-family: monospace;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Simulated Vision Bounding Boxes */
+.hud-bounding-box {
+  position: absolute;
+  border: 1.5px dashed rgba(56, 189, 248, 0.7);
+  background-color: rgba(56, 189, 248, 0.05);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.hud-box-tag {
+  position: absolute;
+  top: -10px;
+  left: 6px;
+  background-color: #0284c7;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+}
+
+.hud-bounding-box.box-bed {
+  top: 48px;
+  left: 20%;
+  width: 60%;
+  height: 120px;
+}
+
+.hud-bounding-box.box-linen {
+  top: 60px;
+  left: 25%;
+  width: 50%;
+  height: 90px;
+  border-color: rgba(16, 185, 129, 0.8);
+  background-color: rgba(16, 185, 129, 0.06);
+}
+
+.hud-bounding-box.box-linen .hud-box-tag {
+  background-color: #059669;
+}
+
+.hud-bounding-box.box-gas {
+  top: 48px;
+  left: 10px;
+  width: 75px;
+  height: 50px;
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.hud-bounding-box.box-gas .hud-box-tag {
+  background-color: #334155;
+  font-size: 0.6rem;
+}
+
+/* Privacy Badge */
+.hud-privacy-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #10b981;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(12, 20, 39, 0.85);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  z-index: 6;
+}
+
+/* Laser Scanning Beam */
+.scanning-laser-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #10b981, transparent);
+  box-shadow: 0 0 14px #38bdf8, 0 0 24px #10b981;
+  animation: scan-sweep 1.8s ease-in-out infinite;
+  z-index: 7;
+}
+
+@keyframes scan-sweep {
+  0% { top: 0%; opacity: 0.8; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.8; }
+}
+
+.hud-scanning-status-bar {
+  position: absolute;
+  bottom: 12px;
+  right: 32px;
+  background: rgba(12, 20, 39, 0.9);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #38bdf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+/* 5 Checkpoints Row */
+.ai-checkpoints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.ai-checkpoint-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+/* AI Action Controls */
+.ai-action-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.ai-action-description strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #0f172a;
+  margin-bottom: 0.15rem;
+}
+
+.ai-action-description p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ai-buttons-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ai-zero-lag-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #059669;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  background-color: #ecfdf5;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+

@@ -119,10 +119,10 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           label="Beds Ready / Total"
           value={readyBeds}
           subValue={`${totalBeds}`}
-          subtext={`${awaitingReviewBeds} awaiting review • ${cleaningBeds} cleaning`}
+          subtext={`${readyBeds} AI verified • ${awaitingReviewBeds} camera queued • ${cleaningBeds} sanitizing`}
           icon={Bed}
           tone="teal"
-          trend={{ direction: 'up', text: `${readyBeds} beds verified` }}
+          trend={{ direction: 'up', text: `${readyBeds} AI confirmed` }}
           onClick={() => onNavigate('beds')}
         />
 
@@ -239,9 +239,9 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
               <div
                 className="breakdown-segment seg-review"
                 style={{ width: `${Math.max(8, (awaitingReviewBeds / totalBeds) * 100)}%` }}
-                title={`Awaiting Review: ${awaitingReviewBeds}`}
+                title={`AI Camera Queue: ${awaitingReviewBeds}`}
               >
-                <span>{awaitingReviewBeds} Review</span>
+                <span>{awaitingReviewBeds} AI Scan</span>
               </div>
               <div
                 className="breakdown-segment seg-handoffs"
@@ -261,7 +261,13 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
                   </div>
                   <div className="bed-mini-status">
                     <StatusBadge
-                      label={c.status.replace(/_/g, ' ')}
+                      label={
+                        c.status === 'BED_READY'
+                          ? 'AI READY'
+                          : c.status === 'AWAITING_REVIEW'
+                          ? 'AI SCANNING'
+                          : c.status.replace(/_/g, ' ')
+                      }
                       tone={
                         c.status === 'BED_READY'
                           ? 'green'

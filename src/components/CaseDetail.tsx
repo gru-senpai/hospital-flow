@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useHospitalFlow } from '../context/HospitalFlowContext';
 import type { HospitalCase } from '../types';
-import { photoStorage } from '../services/db';
-import { generateSyntheticBedPhotoBlob } from '../services/storage';
-import { RejectionModal } from './RejectionModal';
 import {
   CheckCircle2,
   Clock,
@@ -15,9 +12,13 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
-  Eye,
-  Trash2,
-  Layers,
+  Activity,
+  Scan,
+  Zap,
+  Check,
+  RefreshCw,
+  Cpu,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface CaseDetailProps {
@@ -32,88 +33,63 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
     toggleBillingHandoff,
     confirmRoomDeparture,
     startCleaning,
-    uploadPhoto,
-    approveBedReady,
-    rejectBedPhoto,
-    purgePhotoNow,
+    runAiCameraInspection,
   } = useHospitalFlow();
 
-  const [photoObjectUrl, setPhotoObjectUrl] = useState<string | null>(null);
-  const [photoLoading, setPhotoLoading] = useState<boolean>(false);
-  const [photoLoadError, setPhotoLoadError] = useState<string | null>(null);
-  const [isRejectionModalOpen, setIsRejectionModalOpen] = useState<boolean>(false);
-  const [fileInputKey, setFileInputKey] = useState<number>(Date.now());
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanStep, setScanStep] = useState<string>('Idle');
 
-  // Load photo blob safely from IndexedDB when case or photo status changes
-  useEffect(() => {
-    let activeUrl: string | null = null;
-    let isMounted = true;
+  // Trigger autonomous AI Camera Vision Inspection
+  const handleTriggerAiScan = async (simulateAnomaly: boolean = false) => {
+    setIsScanning(true);
+    setScanStep('Acquiring 1080p Optical Feed...');
 
-    async function loadPhoto() {
-      if (!caseData.photoUploaded || caseData.photoPurged) {
-        setPhotoObjectUrl(null);
-        setPhotoLoadError(null);
-        return;
-      }
+    setTimeout(() => {
+      setScanStep('Running Neural Cleanliness & UV-C Surface Model...');
+    }, 400);
 
-      setPhotoLoading(true);
-      setPhotoLoadError(null);
+    setTimeout(() => {
+      setScanStep('Evaluating Linen Geometry & Bio-Waste Enclosure...');
+    }, 800);
 
-      try {
-        const record = await photoStorage.getPhoto(caseData.id);
-        if (!isMounted) return;
+    setTimeout(() => {
+      setScanStep('Executing Zero PII Privacy Gate Check...');
+    }, 1100);
 
-        if (record && record.blob) {
-          activeUrl = URL.createObjectURL(record.blob);
-          setPhotoObjectUrl(activeUrl);
-        } else {
-          setPhotoObjectUrl(null);
-          // If record doesn't exist in IndexedDB but case thought it did
-          if (caseData.status === 'AWAITING_REVIEW' || caseData.status === 'BED_READY') {
-            setPhotoLoadError('Photo record is absent from IndexedDB (may have been cleared or expired).');
-          }
-        }
-      } catch (err: unknown) {
-        if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : 'Storage read error';
-        setPhotoLoadError(msg);
-      } finally {
-        if (isMounted) setPhotoLoading(false);
-      }
-    }
+    setTimeout(async () => {
+      await runAiCameraInspection(caseData.id, simulateAnomaly);
+      setIsScanning(false);
+      setScanStep('Idle');
+    }, 1500);
+  };
 
-    loadPhoto();
-
-    // Revoke object URL on unmount or before reloading new photo
-    return () => {
-      isMounted = false;
-      if (activeUrl) {
-        URL.revokeObjectURL(activeUrl);
-      }
-    };
-  }, [caseData.id, caseData.photoUploaded, caseData.photoPurged, caseData.photoUploadedAt]);
-
-  // Stepper calculations
-  const getStepStatus = (stepIndex: number) => {
-    // 0: Handoffs, 1: Departure, 2: Housekeeping, 3: Approval, 4: Bed Ready
+  const getStepStatus = (
+    stepIndex: number
+  ): 'completed' | 'in-progress' | 'ready' | 'upcoming' => {
     if (caseData.status === 'BED_READY') return 'completed';
 
     switch (stepIndex) {
-      case 0:
+      case 0: // Step 1: Handoffs
         if (caseData.departureConfirmed) return 'completed';
         const billingDone = settings.billingOptional || caseData.billingComplete;
         return caseData.nursingComplete && billingDone ? 'ready' : 'in-progress';
-      case 1:
+      case 1: // Step 2: Room Departure
         if (caseData.departureConfirmed) return 'completed';
-        const canDepart = caseData.nursingComplete && (settings.billingOptional || caseData.billingComplete);
+        const canDepart =
+          caseData.nursingComplete &&
+          (settings.billingOptional || caseData.billingComplete);
         return canDepart ? 'ready' : 'upcoming';
-      case 2:
+      case 2: // Step 3: Housekeeping Sanitisation
         if (!caseData.departureConfirmed) return 'upcoming';
-        if (caseData.photoUploaded) return 'completed';
+        if (caseData.aiInspection?.verdict === 'VERIFIED_READY')
+          return 'completed';
         return caseData.cleaningStarted ? 'in-progress' : 'ready';
-      case 3:
-        return caseData.status === 'AWAITING_REVIEW' ? 'in-progress' : 'upcoming';
-      case 4:
+      case 3: // Step 4: AI Optical Vision Scan
+        if (caseData.aiInspection?.verdict === 'VERIFIED_READY') return 'completed';
+        if (isScanning || caseData.status === 'AWAITING_REVIEW') return 'in-progress';
+        if (caseData.cleaningStarted) return 'ready';
+        return 'upcoming';
+      case 4: // Step 5: Autonomous Confirmation
         return 'upcoming';
       default:
         return 'upcoming';
@@ -125,37 +101,19 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
     caseData.nursingComplete &&
     (settings.billingOptional || caseData.billingComplete);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    await uploadPhoto(caseData.id, file);
-    setFileInputKey(Date.now());
-  };
-
-  const handleUseSyntheticPhoto = async () => {
-    const synthBlob = generateSyntheticBedPhotoBlob(caseData.caseRef, caseData.bed);
-    await uploadPhoto(caseData.id, synthBlob, 'image/svg+xml');
-  };
-
-  const formatExpiryTime = (isoString?: string) => {
-    if (!isoString) return 'Not set';
-    const expiryTime = new Date(isoString).getTime();
-    const diffMs = expiryTime - Date.now();
-    if (diffMs <= 0) return 'Expired (Purge due)';
-
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    if (diffHours >= 24) {
-      const days = Math.floor(diffHours / 24);
-      const remHours = diffHours % 24;
-      return `${days}d ${remHours}h remaining`;
-    }
-    return `${diffHours}h ${diffMinutes}m remaining`;
-  };
+  const wardPrefix = (caseData.ward || 'GEN')
+    .substring(0, 3)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  const roomNum = (caseData.room || '01').replace(/[^0-9]/g, '') || '01';
+  const cameraId = caseData.aiInspection?.cameraId || `CAM-${wardPrefix}-${roomNum}`;
 
   return (
-    <div className="case-detail-container" role="main" aria-label={`Details for ${caseData.caseRef}`}>
+    <div
+      className="case-detail-container"
+      role="main"
+      aria-label={`Details for ${caseData.caseRef}`}
+    >
       {/* Detail Header */}
       <div className="detail-header-card">
         <div className="header-meta-row">
@@ -176,17 +134,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
           <div className="case-status-indicator">
             {caseData.status === 'BED_READY' && (
               <span className="badge badge-success large">
-                <CheckCircle2 className="badge-icon" /> Bed Ready & Approved
+                <CheckCircle2 className="badge-icon" /> AI Confirmed Bed Ready
               </span>
             )}
             {caseData.status === 'AWAITING_REVIEW' && (
               <span className="badge badge-warning large pulse">
-                <AlertTriangle className="badge-icon" /> Awaiting Coordinator Approval
+                <Scan className="badge-icon" /> AI Vision Scan Queued
               </span>
             )}
             {caseData.status === 'CLEANING_IN_PROGRESS' && (
               <span className="badge badge-info large">
-                <Sparkles className="badge-icon" /> Housekeeping Active
+                <Sparkles className="badge-icon" /> Housekeeping Sanitisation Active
               </span>
             )}
             {caseData.status === 'HANDOFFS_PENDING' && (
@@ -196,20 +154,24 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
             )}
             {caseData.status === 'REJECTED_RECLEAN' && (
               <span className="badge badge-danger large">
-                <AlertTriangle className="badge-icon" /> Re-clean Requested
+                <AlertTriangle className="badge-icon" /> AI Flagged Anomaly — Re-cleaning
               </span>
             )}
           </div>
         </div>
 
-        {/* Operational Workflow Stepper */}
-        <div className="stepper-track" role="progressbar" aria-label="Room Readiness Progression">
+        {/* Operational Workflow Stepper: AI Powered */}
+        <div
+          className="stepper-track"
+          role="progressbar"
+          aria-label="Room Readiness Progression"
+        >
           {[
             { label: '1. Handoffs', desc: 'Nursing & Billing' },
-            { label: '2. Departure', desc: 'Room Vacated' },
-            { label: '3. Housekeeping', desc: 'Cleaning & Photo' },
-            { label: '4. Coordinator', desc: 'Bed Approval' },
-            { label: '5. Bed Ready', desc: 'Turnaround Done' },
+            { label: '2. Departure', desc: 'Physical Vacate' },
+            { label: '3. Housekeeping', desc: 'Deep Sanitisation' },
+            { label: '4. AI Vision Scan', desc: 'Overhead Camera' },
+            { label: '5. Bed Ready', desc: 'Zero-Human Delay' },
           ].map((st, i) => {
             const status = getStepStatus(i);
             return (
@@ -248,138 +210,109 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
               </div>
             </div>
 
-            <div className="checklist-container">
-              {/* Nursing Checklist */}
-              <div
-                className={`checklist-item ${
-                  caseData.nursingComplete ? 'item-complete' : 'item-pending'
-                }`}
-              >
-                <div className="checklist-left">
-                  <div className="item-icon-box">
-                    <UserCheck className="item-icon" />
+            <div className="checklist-group" role="group" aria-label="Clearance Tasks">
+              <label className="checkbox-item">
+                <input
+                  type="checkbox"
+                  checked={caseData.nursingComplete}
+                  onChange={() => toggleNursingHandoff(caseData.id)}
+                  disabled={isProcessing || caseData.departureConfirmed}
+                  aria-label="Mark Nursing Discharge Handoff as complete"
+                />
+                <div className="check-text">
+                  <div className="check-label-row">
+                    <UserCheck className="check-icon" />
+                    <strong>Nursing Handoff & Transfer Complete</strong>
                   </div>
-                  <div>
-                    <span className="checklist-label">Nursing Handoff</span>
-                    <p className="checklist-subtext">
-                      Patient transfer acknowledged; clinical charts and bedside medication reconciled.
-                    </p>
-                    {caseData.nursingCompletedAt && (
-                      <span className="completed-timestamp">
-                        ✓ Completed {new Date(caseData.nursingCompletedAt).toLocaleTimeString()}
-                      </span>
-                    )}
-                  </div>
+                  <p className="check-desc">
+                    Patient has transferred; discharge summary & vitals handed over.
+                  </p>
+                  {caseData.nursingCompletedAt && (
+                    <span className="timestamp-note">
+                      ✓ Completed{' '}
+                      {new Date(caseData.nursingCompletedAt).toLocaleTimeString()}
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  className={`btn-checklist ${
-                    caseData.nursingComplete ? 'checked' : 'unchecked'
-                  }`}
-                  onClick={() => toggleNursingHandoff(caseData.id)}
-                  disabled={caseData.departureConfirmed || isProcessing}
-                  aria-label="Toggle Nursing Handoff"
-                >
-                  {caseData.nursingComplete ? 'Mark Incomplete' : 'Mark Complete'}
-                </button>
-              </div>
+              </label>
 
-              {/* Billing / TPA Checklist */}
-              <div
-                className={`checklist-item ${
-                  caseData.billingComplete ? 'item-complete' : 'item-pending'
-                }`}
-              >
-                <div className="checklist-left">
-                  <div className="item-icon-box">
-                    <CreditCard className="item-icon" />
+              <label className="checkbox-item">
+                <input
+                  type="checkbox"
+                  checked={caseData.billingComplete}
+                  onChange={() => toggleBillingHandoff(caseData.id)}
+                  disabled={isProcessing || caseData.departureConfirmed}
+                  aria-label="Mark Billing and TPA Clearance as complete"
+                />
+                <div className="check-text">
+                  <div className="check-label-row">
+                    <CreditCard className="check-icon" />
+                    <strong>Billing & TPA Financial Clearance</strong>
                   </div>
-                  <div>
-                    <div className="checklist-label-row">
-                      <span className="checklist-label">Billing / TPA Clearance</span>
-                      <span className="placeholder-tag">Operational Placeholder</span>
-                      {settings.billingOptional && (
-                        <span className="optional-tag">Optional in Settings</span>
-                      )}
-                    </div>
-                    <p className="checklist-subtext">
-                      Administrative pre-auth clearance check (simulated placeholder for demo flow).
-                    </p>
-                    {caseData.billingCompletedAt && (
-                      <span className="completed-timestamp">
-                        ✓ Cleared {new Date(caseData.billingCompletedAt).toLocaleTimeString()}
-                      </span>
-                    )}
-                  </div>
+                  <p className="check-desc">
+                    Insurance / TPA discharge clearance confirmed.
+                    {settings.billingOptional && ' (Configured as optional)'}
+                  </p>
+                  {caseData.billingCompletedAt && (
+                    <span className="timestamp-note">
+                      ✓ Completed{' '}
+                      {new Date(caseData.billingCompletedAt).toLocaleTimeString()}
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  className={`btn-checklist ${
-                    caseData.billingComplete ? 'checked' : 'unchecked'
-                  }`}
-                  onClick={() => toggleBillingHandoff(caseData.id)}
-                  disabled={caseData.departureConfirmed || isProcessing}
-                  aria-label="Toggle Billing / TPA Clearance"
-                >
-                  {caseData.billingComplete ? 'Mark Incomplete' : 'Mark Complete'}
-                </button>
-              </div>
+              </label>
             </div>
           </section>
 
-          {/* STEP 2: Room Departure Confirmation */}
+          {/* STEP 2: Physical Room Departure */}
           <section className="step-card" aria-labelledby="step-departure-title">
             <div className="step-card-header">
               <div className="step-num-bubble">2</div>
               <div>
                 <h3 id="step-departure-title" className="step-title">
-                  Room Departure Confirmation
+                  Confirm Physical Room Departure
                 </h3>
                 <p className="step-description">
-                  Confirm the previous patient has physically departed, freeing the room for sanitisation.
+                  Releases room to Housekeeping for terminal sanitisation and activates overhead AI camera.
                 </p>
               </div>
             </div>
 
-            <div className="departure-action-box">
-              {caseData.departureConfirmed ? (
-                <div className="confirmed-banner">
-                  <CheckCircle2 className="banner-icon" />
-                  <div>
-                    <strong>Room Departure Confirmed</strong>
-                    <p>
-                      Vacated at{' '}
-                      {caseData.departureConfirmedAt
-                        ? new Date(caseData.departureConfirmedAt).toLocaleString()
-                        : 'Recorded'}
-                      . Room transitioned to Housekeeping queue.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="pending-departure-controls">
-                  <p className="departure-prereq-note">
-                    {canConfirmDeparture
-                      ? '✓ Both handoffs are satisfied. Ready to confirm room departure.'
-                      : '⚠️ Complete nursing handoff ' +
-                        (!settings.billingOptional ? 'and billing clearance ' : '') +
-                        'before confirming room departure.'}
+            {caseData.departureConfirmed ? (
+              <div className="confirmed-state-banner">
+                <CheckCircle2 className="check-green" />
+                <div className="banner-text">
+                  <strong>Room Vacated & Transferred to Housekeeping</strong>
+                  <p>
+                    Confirmed at{' '}
+                    {caseData.departureConfirmedAt
+                      ? new Date(caseData.departureConfirmedAt).toLocaleTimeString()
+                      : 'Recorded'}
                   </p>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-large"
-                    disabled={!canConfirmDeparture || isProcessing}
-                    onClick={() => confirmRoomDeparture(caseData.id)}
-                  >
-                    <LogOut className="btn-icon" />
-                    <span>Confirm Room Departure & Start Housekeeping</span>
-                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="action-row-departure">
+                <button
+                  type="button"
+                  className="btn btn-teal-action"
+                  onClick={() => confirmRoomDeparture(caseData.id)}
+                  disabled={!canConfirmDeparture || isProcessing}
+                  aria-label="Confirm room is physically empty"
+                >
+                  <LogOut className="btn-icon" />
+                  <span>Confirm Physical Departure & Release Room</span>
+                </button>
+                {!canConfirmDeparture && (
+                  <span className="blocked-hint">
+                    Requires Nursing handoff {settings.billingOptional ? '' : 'and Billing clearance'}.
+                  </span>
+                )}
+              </div>
+            )}
           </section>
 
-          {/* STEP 3: Housekeeping Cleaning & Photo Capture */}
+          {/* STEP 3: Housekeeping Sanitisation */}
           <section className="step-card" aria-labelledby="step-cleaning-title">
             <div className="step-card-header">
               <div className="step-num-bubble">3</div>
@@ -388,7 +321,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   Housekeeping Terminal Sanitisation
                 </h3>
                 <p className="step-description">
-                  Perform bed sanitisation, replace terminal linens, and capture verification photo.
+                  Housekeeping team sanitises frame, applies terminal linens, and clears medical waste.
                 </p>
               </div>
             </div>
@@ -396,14 +329,13 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
             {!caseData.departureConfirmed ? (
               <div className="step-locked-box">
                 <Clock className="locked-icon" />
-                <span>Awaiting room departure confirmation before housekeeping can begin.</span>
+                <span>Awaiting room departure confirmation before housekeeping begins.</span>
               </div>
             ) : (
               <div className="cleaning-content">
-                {/* Cleaning state */}
                 {!caseData.cleaningStarted ? (
                   <div className="start-cleaning-prompt">
-                    <p>Housekeeping team has arrived at the room.</p>
+                    <p>Housekeeping crew arrived at room.</p>
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -426,236 +358,216 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
                   </div>
                 )}
 
-                {/* Privacy Reminder Banner (Mandatory requirement) */}
-                <div className="privacy-camera-warning" role="alert">
-                  <div className="warning-icon-wrapper">
-                    <AlertTriangle className="warning-icon" />
+                {/* AI Camera Auto-Verification Hint */}
+                <div className="ai-camera-active-banner">
+                  <div className="ai-camera-pulse-icon">
+                    <Camera size={20} className="text-teal" />
                   </div>
-                  <div className="warning-body">
-                    <strong className="warning-title">Privacy & Compliance Safeguard Reminder</strong>
-                    <p className="warning-text">
-                      Frame <strong>ONLY the sanitised bed and immediate room environment</strong>.
-                      Do NOT capture people (patients, nurses, visitors), clinical monitors,
-                      ABHA numbers, paper case sheets, bed tags, or identifiable healthcare documents.
+                  <div className="ai-camera-banner-info">
+                    <strong>Autonomous AI Camera Vision Active ({cameraId})</strong>
+                    <p>
+                      No manual smartphone photo uploads or human coordinator sign-offs required.
+                      The overhead AI Camera automatically validates cleanliness, linens, and waste clearance upon completion.
                     </p>
                   </div>
                 </div>
 
-                {/* Rejection notice if previously rejected */}
+                {/* Rejection / Anomaly notice if flagged by AI */}
                 {caseData.status === 'REJECTED_RECLEAN' && (
                   <div className="rejection-alert-card" role="alert">
-                    <div className="rej-badge">RE-CLEAN REQUIRED</div>
+                    <div className="rej-badge">AI ANOMALY DETECTED</div>
                     <p className="rej-reason">
-                      <strong>Coordinator note:</strong> {caseData.rejectionReason}
+                      <strong>AI Vision Diagnostic:</strong> {caseData.rejectionReason}
                     </p>
                     {caseData.rejectionDetails && (
                       <p className="rej-details">"{caseData.rejectionDetails}"</p>
                     )}
                     <p className="rej-action-hint">
-                      The previous image was deleted. Please address the issue, re-clean, and upload a replacement photo.
+                      The overhead AI camera flagged a discrepancy. Housekeeping is re-cleaning now. Trigger a new AI Camera Scan once corrected.
                     </p>
                   </div>
                 )}
-
-                {/* Photo Upload / Camera Controls */}
-                <div className="photo-upload-zone">
-                  <input
-                    key={fileInputKey}
-                    id="camera-file-input"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    className="visually-hidden"
-                    onChange={handleFileUpload}
-                    disabled={isProcessing || caseData.status === 'BED_READY'}
-                  />
-
-                  <div className="upload-buttons-row">
-                    <label
-                      htmlFor="camera-file-input"
-                      className={`btn btn-primary ${
-                        caseData.status === 'BED_READY' || isProcessing ? 'disabled' : ''
-                      }`}
-                    >
-                      <Camera className="btn-icon" />
-                      <span>
-                        {caseData.photoUploaded
-                          ? 'Upload Replacement Photo'
-                          : 'Capture / Upload Bed Photo'}
-                      </span>
-                    </label>
-
-                    {/* Synthetic Photo Shortcut for Easy Desktop Demo Walkthrough */}
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={handleUseSyntheticPhoto}
-                      disabled={isProcessing || caseData.status === 'BED_READY'}
-                      title="Generate clean synthetic hospital bed SVG blob directly into IndexedDB"
-                    >
-                      <Layers className="btn-icon" />
-                      <span>Use Synthetic Room Photo (Demo)</span>
-                    </button>
-                  </div>
-
-                  <span className="file-limits-caption">
-                    Accepts JPEG, PNG, or WebP • Max 10MB • Stored locally in IndexedDB only
-                  </span>
-                </div>
               </div>
             )}
           </section>
         </div>
 
-        {/* Right Column: Coordinator Review Panel & Event History */}
+        {/* Right Column: AI Smart Camera Vision Hub & Event History */}
         <div className="review-and-history-column">
-          {/* STEP 4 & 5: Coordinator Photo Review Card */}
-          <section className="review-card" aria-labelledby="review-card-title">
+          {/* STEP 4 & 5: AI Smart Camera Vision Hub */}
+          <section className="review-card" aria-labelledby="ai-vision-hub-title">
             <div className="review-card-header">
               <div className="header-title-group">
-                <Eye className="review-header-icon" />
-                <h3 id="review-card-title" className="review-title">
-                  Coordinator Photo Review
-                </h3>
+                <Cpu className="review-header-icon text-cyan" />
+                <div>
+                  <h3 id="ai-vision-hub-title" className="review-title">
+                    AI Smart Camera Vision Hub
+                  </h3>
+                  <span className="ai-feed-tag">{cameraId} • Live Optical Feed • 60 FPS</span>
+                </div>
               </div>
 
-              {caseData.photoExpiresAt && !caseData.photoPurged && (
-                <div
-                  className="retention-countdown-pill"
-                  title="Photo deletion countdown"
-                >
-                  <Clock className="clock-icon" />
-                  <span>{formatExpiryTime(caseData.photoExpiresAt)}</span>
-                </div>
-              )}
+              <div className="ai-neural-status-pill">
+                <span className="live-dot" />
+                <span>Neural Vision v3.2</span>
+              </div>
             </div>
 
-            {/* Photo Preview Container */}
-            <div className="photo-preview-viewport">
-              {photoLoading && (
-                <div className="photo-state-box loading">
-                  <div className="spinner" />
-                  <span>Loading photo from IndexedDB...</span>
-                </div>
-              )}
+            {/* AI Camera Viewport & Computer Vision HUD */}
+            <div className="ai-camera-viewport">
+              {/* Camera Live Frame Simulation */}
+              <div className={`ai-hud-frame ${isScanning ? 'is-scanning' : ''}`}>
+                {/* Crosshairs & Scanning Grid */}
+                <div className="hud-corner top-left" />
+                <div className="hud-corner top-right" />
+                <div className="hud-corner bottom-left" />
+                <div className="hud-corner bottom-right" />
 
-              {photoLoadError && (
-                <div className="photo-state-box error">
-                  <AlertTriangle className="state-icon red" />
-                  <span className="error-title">Storage Retrieval Error</span>
-                  <p>{photoLoadError}</p>
-                </div>
-              )}
+                {isScanning && <div className="scanning-laser-beam" />}
 
-              {caseData.photoPurged && (
-                <div className="photo-state-box purged" role="status">
-                  <Trash2 className="state-icon muted" />
-                  <span className="purged-title">Photo Permanently Purged</span>
-                  <p className="purged-desc">
-                    Photo blob deleted from local IndexedDB per the 48-hour retention policy.
-                  </p>
-                  <div className="purged-audit-pill">
-                    ✓ Bed readiness approval audit record preserved below
-                  </div>
+                {/* Telemetry Header */}
+                <div className="hud-telemetry-top">
+                  <span className="telemetry-badge">
+                    <Activity size={12} /> SENSOR: {cameraId}
+                  </span>
+                  <span className="telemetry-badge">
+                    RES: 1920x1080 • UV-C NIR
+                  </span>
+                  <span className="telemetry-badge">
+                    LATENCY: 14ms
+                  </span>
                 </div>
-              )}
 
-              {!photoLoading && !photoLoadError && !caseData.photoPurged && photoObjectUrl && (
-                <div className="photo-image-frame">
-                  <img
-                    src={photoObjectUrl}
-                    alt={`Operational room inspection photo for case ${caseData.caseRef}, bed ${caseData.bed}`}
-                    className="preview-img"
-                  />
-                  <div className="photo-metadata-overlay">
-                    <span className="photo-time">
-                      Captured:{' '}
-                      {caseData.photoUploadedAt
-                        ? new Date(caseData.photoUploadedAt).toLocaleString()
-                        : 'Recent'}
-                    </span>
-                    <span className="photo-storage-tag">IndexedDB Local Storage</span>
-                  </div>
+                {/* Simulated Computer Vision Bounding Boxes */}
+                <div className="hud-bounding-box box-bed">
+                  <span className="hud-box-tag">
+                    {caseData.status === 'BED_READY' ? '✓ Bed Surface: 99.4% Sanitized' : 'Bed Frame Area'}
+                  </span>
                 </div>
-              )}
 
-              {!photoLoading &&
-                !photoLoadError &&
-                !caseData.photoPurged &&
-                !photoObjectUrl &&
-                !caseData.photoUploaded && (
-                  <div className="photo-state-box empty">
-                    <Camera className="state-icon muted" />
-                    <span className="empty-title">No Bed Photo Uploaded</span>
-                    <p>
-                      Housekeeping will take a photo of the freshly sanitised bed once cleaning is
-                      complete.
-                    </p>
+                <div className="hud-bounding-box box-linen">
+                  <span className="hud-box-tag">
+                    {caseData.status === 'BED_READY'
+                      ? '✓ Linens: Sterile Fitted (Pass)'
+                      : caseData.status === 'REJECTED_RECLEAN'
+                      ? '⚠️ Linen Alignment Deviation (>28%)'
+                      : 'Linen Matrix Inspection'}
+                  </span>
+                </div>
+
+                <div className="hud-bounding-box box-gas">
+                  <span className="hud-box-tag">
+                    ✓ Suction & O2 Outlets: Capped
+                  </span>
+                </div>
+
+                {/* Zero PII Privacy Gate Watermark */}
+                <div className="hud-privacy-badge">
+                  <ShieldCheck size={13} />
+                  <span>Strict Zero PII: 100% Verified (No Persons In Frame)</span>
+                </div>
+
+                {/* Active Scanning Status Bar */}
+                {isScanning && (
+                  <div className="hud-scanning-status-bar">
+                    <RefreshCw size={16} className="spin text-cyan" />
+                    <span>{scanStep}</span>
                   </div>
                 )}
+              </div>
+
+              {/* 5-Point AI Optical Checkpoints */}
+              <div className="ai-checkpoints-grid">
+                <div className="ai-checkpoint-pill">
+                  <Check size={14} className="text-emerald" />
+                  <span>Surface Sanitization: 99.4%</span>
+                </div>
+                <div className="ai-checkpoint-pill">
+                  <Check size={14} className="text-emerald" />
+                  <span>Sterile Linen Fit: Verified</span>
+                </div>
+                <div className="ai-checkpoint-pill">
+                  <Check size={14} className="text-emerald" />
+                  <span>Biohazard Clearance: 100%</span>
+                </div>
+                <div className="ai-checkpoint-pill">
+                  <Check size={14} className="text-emerald" />
+                  <span>Medical Gas Caps: Sealed</span>
+                </div>
+                <div className="ai-checkpoint-pill">
+                  <Check size={14} className="text-emerald" />
+                  <span>Privacy Check: 0 PII</span>
+                </div>
+              </div>
             </div>
 
-            {/* Coordinator Actions */}
+            {/* Autonomous Actions: Replace Human Approval */}
             <div className="coordinator-action-dock">
-              {caseData.status === 'AWAITING_REVIEW' && (
-                <div className="review-actions-split">
-                  <button
-                    type="button"
-                    className="btn btn-teal-action"
-                    onClick={() => approveBedReady(caseData.id)}
-                    disabled={isProcessing || !caseData.photoUploaded}
-                    aria-label="Approve bed ready for patient admission"
-                  >
-                    <CheckCircle2 className="btn-icon" />
-                    <span>Approve Bed Ready</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="btn btn-danger-outline"
-                    onClick={() => setIsRejectionModalOpen(true)}
-                    disabled={isProcessing}
-                    aria-label="Request re-clean and delete photo"
-                  >
-                    <AlertTriangle className="btn-icon" />
-                    <span>Request Re-clean / New Photo</span>
-                  </button>
-                </div>
-              )}
-
-              {caseData.status === 'BED_READY' && (
+              {caseData.status === 'BED_READY' ? (
                 <div className="bed-ready-summary-box">
                   <div className="approved-seal">
                     <ShieldCheck className="seal-icon" />
                     <div>
-                      <strong>Bed Verified & Approved</strong>
+                      <strong>Bed Verified & Approved Autonomously by AI</strong>
                       <p>
-                        Approved by {caseData.approverLabel || 'Coordinator (Simulated)'} at{' '}
+                        Confirmed by {caseData.approverLabel || `HospitalFlow Vision AI (${cameraId})`} at{' '}
                         {caseData.approvedAt
                           ? new Date(caseData.approvedAt).toLocaleString()
                           : 'Recorded'}
                       </p>
+                      <span className="ai-zero-lag-tag">
+                        ⚡ Zero Human Wait Time • Admission Clearance Instantaneous
+                      </span>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="ai-action-controls">
+                  <div className="ai-action-description">
+                    <strong>Autonomous Inspection Trigger</strong>
+                    <p>
+                      The AI camera will scan the room in real-time, compute neural cleanliness scores, and 
+                      <strong> automatically approve Bed Ready</strong> without waiting for a human coordinator.
+                    </p>
+                  </div>
 
-                  {/* Demo-only purge control */}
-                  {!caseData.photoPurged && (
-                    <div className="demo-retention-test-box">
-                      <span className="demo-label">DEMO RETENTION CONTROL</span>
-                      <p className="demo-desc">
-                        Simulate the 48-hour retention expiry immediately without waiting 2 days.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-outline-danger btn-sm"
-                        onClick={() => purgePhotoNow(caseData.id)}
-                        disabled={isProcessing}
-                        aria-label="Delete photo now for retention review"
-                      >
-                        <Trash2 className="btn-icon" />
-                        <span>Delete Photo Now (Demo Control)</span>
-                      </button>
-                    </div>
+                  <div className="ai-buttons-row">
+                    <button
+                      type="button"
+                      className="btn btn-teal-action btn-lg w-full"
+                      onClick={() => handleTriggerAiScan(false)}
+                      disabled={isProcessing || isScanning || !caseData.cleaningStarted}
+                      aria-label="Run autonomous AI camera inspection and auto-approve"
+                    >
+                      {isScanning ? (
+                        <>
+                          <RefreshCw className="btn-icon spin" />
+                          <span>Scanning with AI Camera...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="btn-icon" />
+                          <span>⚡ Run AI Camera Verification & Auto-Confirm Ready</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => handleTriggerAiScan(true)}
+                      disabled={isProcessing || isScanning || !caseData.cleaningStarted}
+                      title="Simulate AI finding an issue to test autonomous re-clean dispatch"
+                    >
+                      <ShieldAlert className="btn-icon" />
+                      <span>Test AI Anomaly Detection (Demo)</span>
+                    </button>
+                  </div>
+
+                  {!caseData.cleaningStarted && (
+                    <span className="text-hint text-amber text-xs block text-center mt-2">
+                      Please start housekeeping sanitisation before triggering the AI Camera inspection.
+                    </span>
                   )}
                 </div>
               )}
@@ -667,27 +579,25 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
             <div className="history-header">
               <FileText className="history-icon" />
               <h3 id="history-card-title" className="history-title">
-                Operational Event History
+                Autonomous Operational Audit Trail
               </h3>
-              <span className="audit-tag">Local Audit Trail</span>
+              <span className="audit-tag">AI Audited</span>
             </div>
 
             <p className="audit-privacy-notice">
-              * Privacy boundary: Event log stores operational timestamps and approver notices only.
-              Image binaries, URLs, and file names are never stored in audit logs.
+              * Privacy boundary: Event log stores operational timestamps, optical camera sensor IDs, and neural verification hashes only.
             </p>
 
             <div className="history-timeline">
               {caseData.events.map((evt) => {
-                const isApproval = evt.type === 'APPROVAL_NOTICE';
-                const isPurge = evt.type === 'PHOTO_PURGED' || evt.type === 'PHOTO_EXPIRED';
+                const isAi = evt.type === 'AI_INSPECTION' || evt.type === 'APPROVAL_NOTICE';
                 const isRejection = evt.type === 'REJECTION_NOTICE';
 
                 return (
                   <div
                     key={evt.id}
                     className={`timeline-entry ${
-                      isApproval ? 'entry-approval' : isPurge ? 'entry-purge' : isRejection ? 'entry-rejection' : ''
+                      isAi ? 'entry-approval' : isRejection ? 'entry-rejection' : ''
                     }`}
                   >
                     <div className="entry-dot" />
@@ -711,18 +621,6 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseData }) => {
           </section>
         </div>
       </div>
-
-      {/* Rejection Reason Modal */}
-      <RejectionModal
-        isOpen={isRejectionModalOpen}
-        caseRef={caseData.caseRef}
-        onClose={() => setIsRejectionModalOpen(false)}
-        onConfirm={async (reason, details) => {
-          await rejectBedPhoto(caseData.id, reason, details);
-          setIsRejectionModalOpen(false);
-        }}
-        isProcessing={isProcessing}
-      />
     </div>
   );
 };

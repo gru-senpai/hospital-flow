@@ -1,11 +1,29 @@
 export type CaseStatus =
   | 'HANDOFFS_PENDING'        // Nursing / Billing handoffs incomplete or awaiting room departure
   | 'CLEANING_IN_PROGRESS'    // Departure confirmed, Housekeeping is cleaning
-  | 'AWAITING_REVIEW'         // Photo uploaded by Housekeeping, awaiting Coordinator approval
-  | 'BED_READY'               // Approved by Coordinator, workflow closed
-  | 'REJECTED_RECLEAN';       // Rejection requested, re-cleaning required
+  | 'AWAITING_REVIEW'         // Cleaning complete, AI Camera Vision scan queued
+  | 'BED_READY'               // Confirmed Bed Ready autonomously by AI Camera Vision
+  | 'REJECTED_RECLEAN';       // AI Vision flagged anomaly, automated re-clean retriggered
 
 export type TurnaroundPriority = 'NORMAL' | 'URGENT' | 'HIGH_TURNOVER';
+
+export interface AiCameraInspection {
+  cameraId: string;
+  lensLocation: string;
+  model: string;
+  timestamp: string;
+  confidenceScore: number;
+  verdict: 'VERIFIED_READY' | 'ANOMALY_DETECTED';
+  checkpoints: {
+    surfaceSanitized: boolean;
+    linenFittedAndSterile: boolean;
+    bioWasteCleared: boolean;
+    medicalGasTerminalsCapped: boolean;
+    zeroPiiPrivacyPass: boolean;
+  };
+  detectedAnomalies?: string[];
+  aiDecisionSummary: string;
+}
 
 export interface EventLog {
   id: string;
@@ -18,11 +36,12 @@ export interface EventLog {
     | 'ROOM_DEPARTURE'
     | 'CLEANING_STARTED'
     | 'PHOTO_UPLOADED'
+    | 'AI_INSPECTION'
     | 'APPROVAL_NOTICE'
     | 'REJECTION_NOTICE'
     | 'PHOTO_PURGED'
     | 'PHOTO_EXPIRED';
-  actorLabel: string; // e.g. "Operations", "Nursing", "Billing / TPA", "Housekeeping", "Coordinator (Simulated)"
+  actorLabel: string; // e.g. "Operations", "Nursing", "Billing / TPA", "Housekeeping", "AI Vision Camera (CAM-W4B-01)"
   summary: string;
   details?: string;
   // NOTE: Strictly NO image URLs, file names, or image bytes in event logs!
@@ -53,16 +72,17 @@ export interface HospitalCase {
   cleaningStarted: boolean;
   cleaningStartedAt?: string;
 
-  // Step 4: Housekeeping Photo & Review
+  // Step 4: Autonomous AI Camera Vision Inspection
+  aiInspection?: AiCameraInspection;
   photoUploaded: boolean;
   photoUploadedAt?: string;
-  photoExpiresAt?: string; // ISO string: 7 days for pending review, 48 hours once approved
+  photoExpiresAt?: string;
   photoPurged: boolean;
   photoPurgedAt?: string;
 
-  // Step 5: Approval / Rejection
+  // Step 5: Automated Confirmation (Zero Human Approval Required)
   approvedAt?: string;
-  approverLabel?: string; // "Coordinator (Simulated)"
+  approverLabel?: string; // e.g. "HospitalFlow Vision AI (Autonomous)"
   rejectionReason?: string;
   rejectionDetails?: string;
   rejectedAt?: string;

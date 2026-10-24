@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Flame,
   ArrowRight,
+  Scan,
 } from 'lucide-react';
 
 interface CaseListProps {
@@ -84,15 +85,15 @@ export const CaseList: React.FC<CaseListProps> = ({ onSelectCase }) => {
       case 'AWAITING_REVIEW':
         return (
           <span className="badge badge-warning">
-            <AlertCircle className="badge-icon" />
-            <span>Awaiting Coordinator Review</span>
+            <Scan className="badge-icon" />
+            <span>AI Vision Scan</span>
           </span>
         );
       case 'BED_READY':
         return (
           <span className="badge badge-success">
             <CheckCircle className="badge-icon" />
-            <span>Bed Ready</span>
+            <span>AI Verified Ready</span>
           </span>
         );
       case 'REJECTED_RECLEAN':
@@ -176,7 +177,7 @@ export const CaseList: React.FC<CaseListProps> = ({ onSelectCase }) => {
           className={`tab-btn ${activeTab === 'AWAITING_REVIEW' ? 'active' : ''}`}
           onClick={() => setActiveTab('AWAITING_REVIEW')}
         >
-          Review Needed
+          AI Vision Queue
           {counts.awaitingReview > 0 && (
             <span className="tab-pill-alert">{counts.awaitingReview}</span>
           )}
