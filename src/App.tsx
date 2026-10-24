@@ -3,6 +3,7 @@ import { HospitalFlowProvider, useHospitalFlow } from './context/HospitalFlowCon
 import { OperationsProvider } from './context/OperationsContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
+import { BottomNav } from './components/layout/BottomNav';
 import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
 import { NotificationDrawer } from './components/layout/NotificationDrawer';
 
@@ -180,20 +181,24 @@ const HospitalFlowCommandCenter: React.FC = () => {
                 alt="HospitalFlow Logo"
                 className="footer-logo-img"
               />
-              <span className="footer-brand">HospitalFlow Enterprise</span>
-              <span className="footer-divider">•</span>
-              <span>Healthcare Resource Coordination Platform</span>
+              <div className="footer-titles">
+                <span className="footer-brand">HospitalFlow Enterprise</span>
+                <span className="footer-tagline">Healthcare Resource Coordination Platform</span>
+              </div>
               <span className="footer-divider">•</span>
               <span className="footer-tag">CONNECT • COORDINATE • CARE</span>
             </div>
             <div className="footer-right">
               <Shield className="footer-shield" />
               <span>
-                Strict Zero PII Protocol • Synthetic Demo Sandbox • Client-Side Verified Storage
+                Strict Zero PII Protocol • Autonomous AI Vision Node • Client-Side Verified Storage
               </span>
             </div>
           </div>
         </footer>
+
+        {/* Mobile Quick Bottom Navigation */}
+        <BottomNav currentRoute={currentRoute} onNavigate={navigateTo} />
       </div>
 
       {/* Global Modals & Drawers */}
